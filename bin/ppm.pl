@@ -7,7 +7,7 @@ use strict;
 
 use PPM;
 
-$PPM::VERSION = "2.1.1";
+$PPM::VERSION = "2.1.3";
 
 my %help;
 
@@ -58,12 +58,14 @@ if ($#ARGV == 0 && $ARGV[0] eq 'genconfig') {
 my %options = PPM::GetPPMOptions();
 my $location;
 
-my $moremsg = "[Press return to continue]";
+my $moremsg = "[Press return to continue or 'q' to quit] ";
 my $interactive = 0;
 
 my %repositories = PPM::ListOfRepositories();
 
 my $prefix_pattern = $^O eq "MSWin32" ? '(--|-|\+|/)' : '(--|-|\+)';
+
+$PPM::PPMShell = 1;
 
 Getopt::Long::Configure("prefix_pattern=$prefix_pattern");
 
@@ -145,13 +147,23 @@ sub exec_command
             print "Package not specified.\n";
             return 1;
         }
+
+        my %installed = InstalledPackageProperties();
         foreach my $package (@ARGV) {
             $package =~ s/::/-/g;
-            if ($interactive && $options{'CONFIRM'}) {
+            if (my $pkg = (grep {/^$package$/i} keys %installed)[0]) {
+                my $version = $installed{$pkg}{'VERSION'};
+                $version =~ s/(,0)*$//;
+                $version =~ tr/,/./;
+                print "Version $version of '$pkg' is already installed.\n" .
+                      "Remove it, or use 'verify --upgrade $pkg'.\n";
+                next;
+            }
+            elsif ($interactive && $options{'CONFIRM'}) {
                 print "Install package '$package?' (y/N): ";
                 next unless <> =~ /^[yY]/;
             }
-            print "Retrieving package '$package'...\n";
+            print "Installing package '$package'...\n";
             if(!InstallPackage("package" => $package, "location" => $location)) {
                 print "Error installing package '$package': $PPM::PPMERR\n";
             }
@@ -252,7 +264,7 @@ sub more
     if (++$$lines >= $options{'MORE'}) {
         print $moremsg;
         $_ = <>;
-        $$lines = 1;
+        $$lines = $_ eq "q\n" ? -1 : 1;
     }
 }
 
@@ -284,7 +296,8 @@ sub print_formatted
     unless ($options{'VERBOSE'}) {
         foreach $package (sort keys %summary) {
             print "$package\n";
-            &more(\$lines) if $options{'MORE'};
+            &more(\$lines) if $options{'MORE'} && $interactive;
+            last if $lines == -1;
         }
         return;
     }
@@ -319,7 +332,8 @@ sub print_formatted
         write;
         $diff -= $-;
         $lines += ($diff - 1) if $diff > 1;
-        &more(\$lines) if $options{'MORE'};
+        &more(\$lines) if $options{'MORE'} && $interactive;
+        last if $lines == -1;
     }
 }
 
@@ -332,6 +346,9 @@ sub set
             "be confirmed.\n";
         print "Temporary files will " . ($options{'CLEAN'} ? "" : "not ") .
             "be deleted.\n";
+        print "Download status will " . (($options{'DOWNLOADSTATUS'} > 0) ?
+            "be updated every $options{'DOWNLOADSTATUS'} bytes.\n" : 
+            "not be updated.\n");
         print "Case-" . ($options{'IGNORECASE'} ? "in" : "") . 
             "sensitive searches will be performed.\n";
         print "Package installations will " . 
@@ -346,7 +363,6 @@ sub set
         if (defined $location) { print "Current PPD repository: $location\n"; }
         else {
             print "Current PPD repository paths:\n";
-            my $location;
             foreach $_ (keys %repositories) {
                 print "\t$_: $repositories{$_}\n";
             }
@@ -421,6 +437,14 @@ sub set
             print "Temporary files will " . ($options{'CLEAN'} ? "" : "not ") . 
                 "be deleted.\n";
         }
+        elsif (command($option, "|downloadstatus")) {
+            print "Numeric value must be given.\n" and return 1
+                unless (defined $value && $value =~ /^\d+$/);
+            $options{'DOWNLOADSTATUS'} = $value;
+            print "Download status will " . (($options{'DOWNLOADSTATUS'} > 0) ?
+                "be updated every $options{'DOWNLOADSTATUS'} bytes.\n" : 
+                "not be updated.\n");
+        }
         elsif (command($option, "|more")) {
             print "Numeric value must be given.\n" and return 1
                 unless (defined $value && $value =~ /^\d+$/);
@@ -459,7 +483,7 @@ sub set
 sub search_PPDs
 {
     my %argv = @_;
-    my $location = $argv{'location'} || $location;
+    my @locations = $argv{'location'} || $location;
     my $searchtag = $argv{'searchtag'};
     my $ignorecase = defined $argv{'ignorecase'} ? 
         $argv{'ignorecase'} : $options{'IGNORECASE'};
@@ -474,11 +498,25 @@ sub search_PPDs
     }
 
     my %packages;
-    my %ppds = PPM::RepositoryPackages("location" => $location);
-    foreach my $loc (keys %ppds) {
-        next if $#{$ppds{$loc}} == -1;
+    unless (defined $locations[0]) {
+        my %reps = PPM::ListOfRepositories;
+        @locations = values %reps;
+    }
+    foreach my $loc (@locations) {
+        my %summary;
+
+        # see if the repository has server-side searching
+        if (defined $searchRE && (%summary = ServerSearch('location' => $loc, 
+                'searchRE' => $searchRE, 'searchtag' => $searchtag))) {
+            # XXX: clean this up
+            foreach my $package (keys %{$summary{$loc}}) {
+                $packages{$loc}{$package} = \%{$summary{$loc}{$package}};
+            }
+            next;
+        }
+
         # see if a summary file is available
-        my %summary = RepositorySummary("location" => $loc);
+        %summary = RepositorySummary("location" => $loc);
         if (%summary) {
             foreach my $package (keys %{$summary{$loc}}) {
                 next if (defined $searchtag && 
@@ -489,6 +527,7 @@ sub search_PPDs
             }
         }
         else {
+            my %ppds = PPM::RepositoryPackages("location" => $loc);
             # No summary: oh my, nothing but 'Net
             foreach my $package (@{$ppds{$loc}}) {
                 my %package_details = RepositoryPackageProperties(
@@ -507,23 +546,14 @@ sub search_PPDs
 
 sub verify_packages
 {
-    my (%argv) = @_;
-    my ($arg, @packages, $upgrade, $force);
-    my $location = $location;
-    foreach $arg (keys %argv) {
-        if ($arg eq 'packages') { @packages = @{$argv{$arg}}; }
-        if ($arg eq 'location') { $location = $argv{$arg}; }
-        if ($arg eq 'upgrade') { $upgrade = $argv{$arg}; }
-        if ($arg eq 'force') { $force = $argv{$arg}; }
-    }
+    my %argv = @_;
+    my @packages = @{$argv{'packages'}};
+    my $upgrade = $argv{'upgrade'};
+    my $force = $argv{'force'};
+    my $location = $argv{'location'} || $location;
     unless ($packages[0]) {
-        my ($i, %info);
-
-        @packages = ();
-        %info = QueryInstalledPackages();
-        foreach $i (keys %info) {
-            push @packages, $i;
-        }
+        my %info = QueryInstalledPackages();
+        @packages = sort keys %info;
     }
 
     my $package = shift @packages;
@@ -542,7 +572,8 @@ sub verify_packages
             }
         }
         else {
-#            print "Error verifying $package: $PPM::PPMERR\n";
+            # Couldn't find a PPD to compare it with.
+            print "Package \'$package\' is up to date.\n";
         }
         $package = shift @packages;
     }
@@ -553,11 +584,11 @@ sub genconfig
 my $PerlDir = $Config{'prefix'};
 print <<"EOF";
 <PPMCONFIG>
-    <PPMVER>2,1,0,0</PPMVER>
+    <PPMVER>2,1,3,0</PPMVER>
     <PLATFORM CPU="x86" OSVALUE="$Config{'osname'}" OSVERSION="0,0,0,0" />
-    <OPTIONS BUILDDIR="$ENV{'TEMP'}" CLEAN="1" CONFIRM="1" FORCEINSTALL="1" IGNORECASE="1" MORE="0" ROOT="$PerlDir" TRACE="0" TRACEFILE="PPM.LOG" VERBOSE="1" />
-    <REPOSITORY LOCATION="soap://www.ActiveState.com/cgibin/SOAP/ppmserver.plex?class=PPM::SOAPServer" NAME="ActiveState Package Repository" SUMMARYFILE="fetch_summary"/>
-    <PPMPRECIOUS>Compress-Zlib;Archive-Tar;Digest-MD5;File-CounterFile;Font-AFM;HTML-Parser;HTML-Tree;MIME-Base64;URI;XML-Element;libwww-perl;XML-Parser;SOAP;PPM;libnet;libwin32</PPMPRECIOUS>
+    <OPTIONS BUILDDIR="$ENV{'TEMP'}" CLEAN="1" CONFIRM="1" DOWNLOADSTATUS="16384" FORCEINSTALL="1" IGNORECASE="1" MORE="0" ROOT="$PerlDir" TRACE="0" TRACEFILE="PPM.LOG" VERBOSE="1" />
+    <REPOSITORY LOCATION="http://www.ActiveState.com/cgibin/PPM/ppmserver.pl?urn:/PPMServer" NAME="ActiveState Package Repository" SUMMARYFILE="fetch_summary"/>
+    <PPMPRECIOUS>Compress-Zlib;Archive-Tar;Digest-MD5;File-CounterFile;Font-AFM;HTML-Parser;HTML-Tree;MIME-Base64;URI;XML-Element;libwww-perl;XML-Parser;SOAP-Lite;PPM;libnet;libwin32</PPMPRECIOUS>
 </PPMCONFIG>
 EOF
 }
@@ -736,6 +767,12 @@ Available options:
           If one of '1' or '0' is not specified, the current
           setting is toggled.
 
+    downloadstatus NUMBER
+        - If non-zero, updates the download status after each NUMBER 
+          of bytes transferred during an 'install'.  This can be
+          reassuring when installing a large package (e.g. Tk) over
+          a low-speed connection.
+
     force_install [1|0]
         - Continue installing a package even if a dependency cannot
           be installed.
@@ -853,7 +890,7 @@ directory, and upgrades to a newer version if available.
 Forces verification and reinstalls every installed package on the system, 
 using upgrade locations specified in the PPM data file.
 
-=item ppm search --location=http://www.ActiveState.com/packages
+=item ppm search --location=http://ppm.ActiveState.com/PPMpackages/5.6
 
 Displays the packages with PPD files available at the specified location.
 
@@ -909,6 +946,17 @@ Murray Nesbitt, E<lt>F<murray@ActiveState.com>E<gt>
 
 =head1 CREDITS
 
-Thanks to my colleague and friend Jan Dubois E<lt>F<jand@ActiveState.com>E<gt>.
+=over 4
+
+=item *
+
+The "geek-pit" at ActiveState.
+
+=item *
+
+Paul Kulchenko for his SOAP-Lite package, and for his enthusiastic
+assistance in getting PPM to work with SOAP-Lite.
+
+=back
 
 =cut

@@ -7,7 +7,7 @@ require Exporter;
     RemoveRepository AddRepository GetPPMOptions SetPPMOptions InstallPackage
     RemovePackage VerifyPackage UpgradePackage RepositoryPackages
     RepositoryPackageProperties QueryInstalledPackages
-    RepositorySummary);
+    RepositorySummary ServerSearch PPMShell);
 
 use LWP::UserAgent;
 use LWP::Simple;
@@ -19,7 +19,7 @@ use ExtUtils::Install;
 use Cwd;
 use Config;
 use PPM::RelocPerl;
-use PPM::SOAPClient;
+use SOAP::Lite;
 
 use XML::PPD;
 use XML::PPMConfig;
@@ -51,6 +51,9 @@ my %options;
 
 my $TraceStarted = 0;
 
+# true if we're running from ppm.pl, as opposed to VPM, etc.
+my $PPMShell;
+
 my %repositories;
 my %cached_ppd_list;
 
@@ -67,7 +70,7 @@ my %current_package = ();
 my @current_package_stack;
 
 # this may get overridden by the config file.
-my @required_packages = qw(PPM SOAP libnet Archive-Tar Compress-Zlib
+my @required_packages = qw(PPM SOAP-Lite libnet Archive-Tar Compress-Zlib
     libwww-perl XML-Parser XML-Element);
 
 # Packages that can't be upgraded on Win9x
@@ -149,7 +152,8 @@ sub RemoveRepository
     read_config();
     foreach (keys %repositories) {
         if ($_ =~ /^\Q$repository\E$/) {
-            &Trace("Removed repository $repositories{$repository}") if $options{'TRACE'};
+            &Trace("Removed repository $repositories{$repository}") 
+                if $options{'TRACE'};
             delete $repositories{$repository};
             last;
         }
@@ -224,13 +228,14 @@ sub InstallPackage
             return 0;
         }
         system("$Config{make} ppd");
-        return 0 unless (%PPD = readPPDfile($PPDfile, 'XML::PPD'));
+        return 0 unless (%PPD = getPPDfile('package' => $PPDfile));
         parsePPD(%PPD);
         $options{'CLEAN'} = 0;
         goto InstallBlib;
     }
 
-    unless ($PPDfile = locatePPDfile($package, $location)) {
+    unless (%PPD = getPPDfile('package' => $package, 
+            'location' => $location, 'PPDfile' => \$PPDfile)) {
         &Trace("Could not locate a PPD file for package $package")
             if $options{'TRACE'};
         $PPM::PPMERR = "Could not locate a PPD file for package $package";
@@ -241,7 +246,6 @@ sub InstallPackage
         $PPM::PPMERR = "Package '$package' cannot be installed with PPM on Win9x--see http://www.ActiveState.com/ppm for details";
         return 0;
     }
-    return 0 unless (%PPD = readPPDfile($PPDfile, 'XML::PPD'));
 
     parsePPD(%PPD);
     if (!$current_package{'CODEBASE'} && !$current_package{'INSTALL_HREF'}) {
@@ -304,7 +308,7 @@ sub InstallPackage
     }
 
     # get the code and put it in build_dir
-    my $install_dir = "$options{'BUILDDIR'}/$current_package{'NAME'}";
+    my $install_dir = "$options{'BUILDDIR'}/$current_package{'NAME'}-$$";
     File::Path::rmtree($install_dir,0,0);
     unless (-d $install_dir || File::Path::mkpath($install_dir, 0, 0755)) {
         &Trace("Could not create $install_dir: $!") if $options{'TRACE'};
@@ -314,10 +318,8 @@ sub InstallPackage
     $basename = fileparse($current_package{'CODEBASE'});
     # CODEBASE is a URL
     if ($current_package{'CODEBASE'} =~ m@^...*://@i) {
-        if (PPM_getstore("source" => "$current_package{'CODEBASE'}",
-            "target" => "$install_dir/$basename") != 0) {
-            return 0;
-        }
+        return 0 unless read_href('href' => "$current_package{'CODEBASE'}",
+            'target' => "$install_dir/$basename", 'request' => "GET");
     }
     # CODEBASE is a full pathname
     elsif (-f $current_package{'CODEBASE'}) {
@@ -332,10 +334,9 @@ sub InstallPackage
     }
     # CODEBASE is relative to the URL location of the PPD
     else {
-        if (PPM_getstore("source" => "$path/$current_package{'CODEBASE'}",
-            "target" => "$install_dir/$basename") != 0) {
-            return 0;
-        }
+        return 0 unless read_href('target' => "$install_dir/$basename",
+            'href' => "$path/$current_package{'CODEBASE'}",
+            'request' => 'GET');
     }
 
     my $cwd = getcwd();
@@ -426,7 +427,7 @@ sub InstallPackage
     }
 
     #rebuild the html TOC
-    Trace("Calling ActivePerl::DocTools::WriteTOC()") if $options{Trace} > 1;
+    Trace("Calling ActivePerl::DocTools::WriteTOC()") if $options{'TRACE'} > 1;
     ActivePerl::DocTools::WriteTOC() if $useDocTools;
 
     if (defined $current_package{'INSTALL_SCRIPT'}) {
@@ -476,16 +477,13 @@ sub RepositoryPackageProperties
     my %argv = @_;
     my $location = $argv{'location'};
     my $package = $argv{'package'};
-    my $PPDfile;
+    my %PPD;
     read_config();
-    unless (defined($PPDfile = locatePPDfile($package, $location))) {
+    unless (%PPD = getPPDfile('package' => $package, 'location' => $location)) {
         &Trace("RepositoryPackageProperties: Could not locate a PPD file for package $package") if $options{'TRACE'};
         $PPM::PPMERR = "Could not locate a PPD file for package $package";
         return;
     }
-
-    return unless (my %PPD = readPPDfile($PPDfile, 'XML::PPD'));
-
     parsePPD(%PPD);
 
     my %ret_hash = map { $_ => $current_package{$_} } 
@@ -565,7 +563,7 @@ sub RemovePackage
     }
 
     #rebuild the html TOC
-    Trace("Calling ActivePerl::DocTools::WriteTOC()") if $options{Trace} > 1;
+    Trace("Calling ActivePerl::DocTools::WriteTOC()") if $options{'TRACE'} > 1;
     ActivePerl::DocTools::WriteTOC() if $useDocTools;
 
     File::Path::rmtree($install_dir,0,0);
@@ -608,13 +606,13 @@ sub VerifyPackage
 
     %installedPPD = %{ $installed_packages{$package}{'INST_PPD'} };
 
-    unless ($comparePPDfile = locatePPDfile($package, $location)) {
+    unless (%comparePPD = getPPDfile('package' => $package, 
+            'location' => $location)) {
         &Trace("VerifyPackage: Could not locate a PPD file for $package")
             if $options{'TRACE'};
         $PPM::PPMERR = "Could not locate a PPD file for $package";
         return;
     }
-    return unless (%comparePPD = readPPDfile($comparePPDfile, 'XML::PPD'));
 
     parsePPD(%installedPPD);
     my @installed_version = split (',', $current_package{'VERSION'});
@@ -647,7 +645,8 @@ sub VerifyPackage
             # need to remember the $location, because once we remove the
             # package, it's unavailable.
             $location = $installed_packages{$package}{'LOCATION'} unless $location;
-	    unless (locatePPDfile($package, $location)) {
+	    unless (getPPDfile('package' => $package, 
+                    'location' => $location)) {
 		&Trace("VerifyPackage: Could not locate a PPD file for $package") if $options{'TRACE'};
 		$PPM::PPMERR = "Could not locate a PPD file for $package";
 		return undef;
@@ -724,7 +723,7 @@ sub QueryInstalledPackages
 sub RepositorySummary {
     my %argv = @_;
     my $location = $argv{'location'};
-    my ($arg, %summary, %locations);
+    my (%summary, %locations);
 
     # If we weren't given the location of a repository to query the summary
     # for, check all of the repositories that we know about.
@@ -756,53 +755,45 @@ sub RepositorySummary {
             $PPM::PPMERR = "No summary available from $location.\n";
             next;
         }
-
-        # Todo: The following code should really be a call to
-        #   readPPDfile( "$location/$summaryfile", 'XML::RepositorySummary' );
-        # for validation.
-        if ($summaryfile ne 'fetch_summary' && !valid_URL_or_file("$location/$summaryfile")) {
-            &Trace("RepositorySummary: No summary available from $location.")
-                if $options{'TRACE'};
-            $PPM::PPMERR = "No summary available from $location.\n";
+        my $data;
+        if ($location =~ m@^...*://@i) {
+            next unless ($data = read_href("request" => 'GET',
+                "href" => "$location/$summaryfile"));
+        } else {
+            local $/;
+            next if (!open (DATAFILE, "$location/$summaryfile"));
+            $data = <DATAFILE>;
+            close(DATAFILE);
         }
-        else {
-            my $data;
-            if ($location =~ m@^...*://@i) {
-                next if (!defined ($data = read_href("href" => "$location/$summaryfile", "request" => 'GET')));
-            } else {
-                local $/;
-                next if (!open (DATAFILE, "$location/$summaryfile"));
-                $data = <DATAFILE>;
-                close(DATAFILE);
-            }
-
-            # take care of '&'
-            $data =~ s/&(?!\w+;)/&amp;/go;
-
-            my $parser = new XML::Parser( Style => 'Objects', Pkg => 'XML::RepositorySummary' );
-            my @parsed = @{ $parser->parse( $data ) };
-
-            my $packages = ${$parsed[0]}{Kids};
-
-            foreach my $package (@{$packages}) {
-                my $elem_type = ref $package;
-                $elem_type =~ s/.*:://;
-                next if ($elem_type eq 'Characters');
-
-                if ($elem_type eq 'SOFTPKG') {
-                    my %ret_hash;
-                    parsePPD(%{$package});
-                    %ret_hash = map { $_ => $current_package{$_} } 
-                        qw(NAME TITLE AUTHOR VERSION ABSTRACT PERLCORE_VER);
-                    foreach my $dep (keys %{$current_package{'DEPEND'}}) {
-                        push @{$ret_hash{'DEPEND'}}, $dep;
-                    }
-                    $summary{$location}{$current_package{'NAME'}} = \%ret_hash;
-                }
-            }
-        }
+        $summary{$location} = parse_summary($data);
     }
 
+    return %summary;
+}
+
+# Returns the same structure as RepositorySummary() above.
+sub ServerSearch
+{
+    my %argv = @_;
+    my $location = $argv{'location'};
+    my $searchRE = $argv{'searchRE'};
+    my $searchtag = $argv{'searchtag'};
+    my $data;
+    my %summary;
+
+    return unless $location =~ m#^(http://.*)\?(urn:.*)#i;
+    my ($proxy, $uri) = ($1, $2);
+    my $client = SOAP::Lite -> uri($uri) -> proxy($proxy);
+    eval { $data = $client -> 
+        search_ppds($Config{'archname'}, $searchRE, $searchtag) -> result; };
+    if ($@) {
+        &Trace("Error searching repository '$proxy': $@") 
+            if $options{'TRACE'};
+        $PPM::PPMERR = "Error searching repository '$proxy': $@\n";
+        return;
+    }
+
+    $summary{$location} = parse_summary($data);
     return %summary;
 }
 
@@ -810,76 +801,54 @@ sub RepositorySummary {
 # Internal subs
 #
 
-sub PPM_getstore {
-    my %argv = @_;
-    my $source = $argv{'source'};
-    my $target = $argv{'target'};
-    unless ($source && $target) {
-        &Trace("PPM_getstore: No source or no target") if $options{'TRACE'};
-        $PPM::PPMERR = "No source or no target\n";
-        return 1;
-    }
-    my ($username, $password);
+sub parse_summary
+{
+    my $data = shift;
+    my (%summary, @parsed);
 
-    # Do we need to do authorization?
-    # This is a hack, but will have to do for now.
-    foreach (keys %repositories) {
-        if ($source =~ /^$repositories{$_}{'LOCATION'}/i) {
-            $username = $repositories{$_}{'USERNAME'};
-            $password = $repositories{$_}{'PASSWORD'};
-            last;
-        }
+    # take care of '&'
+    $data =~ s/&(?!\w+;)/&amp;/go;
+
+    my $parser = new XML::Parser( Style => 'Objects', 
+        Pkg => 'XML::RepositorySummary' );
+    eval { @parsed = @{ $parser->parse( $data ) } };
+    if ($@) {
+        &Trace("parse_summary: content of summary file is not valid") 
+            if $options{'TRACE'};
+        $PPM::PPMERR = 
+            "parse_summary: content of summary file is not valid: $!\n";
+        return;
     }
 
-    if (defined $ENV{HTTP_proxy} || defined $username) {
-        my $ua = new LWP::UserAgent;
-        $ua->agent($ENV{HTTP_proxy_agent} || ("$0/0.1 " . $ua->agent));
-        my $proxy_user = $ENV{HTTP_proxy_user};
-        my $proxy_pass = $ENV{HTTP_proxy_pass};
-        $ua->env_proxy;
-        my $req = new HTTP::Request('GET' => $source);
-        if (defined $proxy_user && defined $proxy_pass) {
-            &Trace("PPM_getstore: calling proxy_authorization_basic($proxy_user, $proxy_pass)") if $options{'TRACE'} > 1;
 
-            $req->proxy_authorization_basic("$proxy_user", "$proxy_pass");
-        }
-        if (defined $username && defined $password) {
-            &Trace("PPM_getstore: calling proxy_authorization_basic($username, $password)") if $options{'TRACE'} > 1;
-            $req->authorization_basic($username, $password);
-        }
-        my $res = $ua->request($req);
-        if ($res->is_success) {
-            unless (open(OUT, ">$target")) {
-                &Trace("PPM_getstore: Couldn't open $target for writing")
-                    if $options{'TRACE'};
-                $PPM::PPMERR = "Couldn't open $target for writing\n";
-                return 1;
+    my $packages = ${$parsed[0]}{Kids};
+
+    foreach my $package (@{$packages}) {
+        my $elem_type = ref $package;
+        $elem_type =~ s/.*:://;
+        next if ($elem_type eq 'Characters');
+
+        if ($elem_type eq 'SOFTPKG') {
+            my %ret_hash;
+            parsePPD(%{$package});
+            %ret_hash = map { $_ => $current_package{$_} } 
+                qw(NAME TITLE AUTHOR VERSION ABSTRACT PERLCORE_VER);
+            foreach my $dep (keys %{$current_package{'DEPEND'}}) {
+                push @{$ret_hash{'DEPEND'}}, $dep;
             }
-            binmode(OUT);
-            print OUT $res->content;
-            close(OUT);
-        } else {
-            &Trace("PPM_getstore: Error reading $source: " . $res->code . " " . $res->message) if $options{'TRACE'};
-            $PPM::PPMERR = "Error reading $source: " . $res->code . " " . $res->message . "\n";
-            return 1;
+            $summary{$current_package{'NAME'}} = \%ret_hash;
         }
     }
-    else {
-        my $status = LWP::Simple::getstore($source, $target);
-        if ($status < 200 || $status > 299) {
-            &Trace("PPM_getstore: Read of $source failed") if $options{'TRACE'};
-            $PPM::PPMERR = "Read of $source failed";
-            return 1;
-        }
-    }
-    return 0;
+    return \%summary;
 }
 
 sub save_options
 {
     read_config();
+    my %PPMConfig;
     # Read in the existing PPM configuration file
-    return unless (my %PPMConfig = readPPDfile($PPM::PPMdat, 'XML::PPMConfig'));
+    return unless (%PPMConfig = 
+      getPPDfile('package' => $PPM::PPMdat, 'parsertype' => 'XML::PPMConfig'));
 
     # Remove all of the declarations for REPOSITORY and PPMPRECIOUS;
     # we'll output these from the lists we've got in memory instead.
@@ -989,9 +958,17 @@ sub list_available
 
         # If we're accessing a SOAP server, do things differently than we would
         # for FTP, HTTP, etc.
-        if ($location =~ m#^soap://#i) {
-            my $client = new PPM::SOAPClient( $location );
-            @ppds = $client->packages();
+        if ($location =~ m#^(http://.*)\?(.*)#i) {
+            my ($proxy, $uri) = ($1, $2);
+            my $client = SOAP::Lite -> uri($uri) -> proxy($proxy);
+            eval { @ppds = $client->packages()->paramsout };
+            if ($@) {
+                &Trace("Package list from '$proxy' failed: $@") 
+                    if $options{'TRACE'};
+                $PPM::PPMERR = 
+                    "Package list from repository '$proxy' failed: $@\n";
+                return;
+            }
         }
         else {
             return unless (my $doc = read_href("href" => $location,
@@ -1031,21 +1008,47 @@ sub list_available
     return sort @ppds;
 }
 
+my ($response, $bytes_transferred);
+
 sub read_href
 {
     my %argv = @_;
     my $href = $argv{'href'};
     my $request = $argv{'request'};
+    my $target = $argv{'target'};
     my ($proxy_user, $proxy_pass);
     # If this is a SOAP URL, handle it differently than FTP/HTTP/file.
-    if ($href =~ m#^soap://#io) {
-        my ($srvr, $fcn) = ($href =~ m@(.*)/(.+?)$@o);
-        my $client = new PPM::SOAPClient( $srvr );
-        return $client->fetch_summary() if ($fcn eq 'fetch_summary');
-        return $client->fetch_ppd( $fcn ) if (uc($request) eq 'HEAD');
-        return;
+    if ($href =~ m#^(http://.*)\?(.*)#i) {
+        my ($proxy, $uri) = ($1, $2);
+        my $fcn;
+        if ($uri =~ m#(.*:/.*)/(.+?)$#) {
+            ($uri, $fcn) = ($1, $2);
+        }
+        my $client = SOAP::Lite -> uri($uri) -> proxy($proxy);
+        if ($fcn eq 'fetch_summary') {
+            my $summary = eval { $client->fetch_summary()->result; };
+            if ($@) {
+                &Trace("Error getting summary from repository '$proxy': $@") 
+                    if $options{'TRACE'};
+                $PPM::PPMERR = 
+                    "Error getting summary from repository '$proxy': $@\n";
+                return;
+            }
+            return $summary;
+        }
+        $fcn =~ s/\.ppd$//i;
+        my $ppd = eval { $client->fetch_ppd($fcn)->result };
+        if ($@) {
+            &Trace("Error fetching '$fcn' from repository '$proxy': $@") 
+                if $options{'TRACE'};
+            $PPM::PPMERR = 
+                "Error fetching '$fcn' from repository '$proxy': $@\n";
+            return;
+        }
+        return $ppd;
+        # todo: write to disk file if $target
     }
-    # Otherwise its a standard URL, go ahead and request it using LWP.
+    # Otherwise it's a standard URL, go ahead and request it using LWP.
     my $ua = new LWP::UserAgent;
     $ua->agent($ENV{HTTP_proxy_agent} || ("$0/0.1 " . $ua->agent));
     if (defined $ENV{HTTP_proxy}) {
@@ -1075,11 +1078,38 @@ sub read_href
         }
     }
 
-    my $res = $ua->request($req);
-    return $res->content if ($res->is_success);
-    &Trace("read_href: Error reading $href: " . $res->code . " " . $res->message) if $options{'TRACE'};
-    $PPM::PPMERR = "Error reading $href: " . $res->code . " " . $res->message . "\n";
-    return undef;
+    ($response, $bytes_transferred) = (undef, 0);
+    $ua->request($req, \&lwp_callback, ($options{'DOWNLOADSTATUS'} || 4096));
+    print "\n" if ($PPM::PPMShell && $options{'DOWNLOADSTATUS'});
+    if ($response->is_success) {
+        if ($target) {
+            unless (open(OUT, ">$target")) {
+                &Trace("read_href: Couldn't open $target for writing")
+                    if $options{'TRACE'};
+                $PPM::PPMERR = "Couldn't open $target for writing\n";
+                return;
+            }
+            binmode(OUT);
+            print OUT $response->content;
+            close(OUT);
+        }
+        return $response->content;
+    }
+    &Trace("read_href: Error reading $href: " . $response->code . " " . 
+        $response->message) if $options{'TRACE'};
+    $PPM::PPMERR = "Error reading $href: " . $response->code . " " . 
+        $response->message . "\n";
+    return;
+}
+
+sub lwp_callback
+{ 
+    my ($data, $res, $protocol) = @_;
+    $response = $res;
+    $response->add_content($data);
+    $bytes_transferred += length($data);
+    print "Bytes transferred: $bytes_transferred\r" 
+        if ($PPM::PPMShell && $options{'DOWNLOADSTATUS'});
 }
 
 sub reread_config
@@ -1219,8 +1249,9 @@ sub PPMdat_add_package
 
     # Now that we've got the structure built, read in the existing PPM
     # Configuration file, add this to it, and spit it back out.
-    return 1 unless (my %PPMConfig =
-        readPPDfile( $PPM::PPMdat, 'XML::PPMConfig'));
+    my %PPMConfig;
+    return 1 unless (%PPMConfig = 
+      getPPDfile('package' => $PPM::PPMdat, 'parsertype' => 'XML::PPMConfig'));
     push( @{$PPMConfig{Kids}}, $pkg );
     my $cfg = bless \%PPMConfig, 'XML::PPMConfig::PPMCONFIG';
 
@@ -1244,8 +1275,9 @@ sub PPMdat_remove_package
     my $package = shift;
 
     # Read in the existing PPM configuration file
-    return 1 unless (my %PPMConfig =
-        readPPDfile( $PPM::PPMdat, 'XML::PPMConfig'));
+    my %PPMConfig;
+    return 1 unless (%PPMConfig = 
+      getPPDfile('package' => $PPM::PPMdat, 'parsertype' => 'XML::PPMConfig'));
 
     # Try to find the package that we're supposed to be removing, and yank it
     # out of the list of installed packages.
@@ -1510,128 +1542,83 @@ sub implementation
     return 1;
 }
 
-sub valid_URL_or_file
+sub getPPDfile
 {
-    my $File = shift;
-    if ($File =~ /^file:\/\/.*\|/i) {
-        # $File is a local directory, let's avoid LWP by changing
-        # it to a pathname.
-        $File =~ s@^file://@@i;
-        $File =~ s@^localhost/@@i;
-        $File =~ s@\|@:@;
-    }
-    return 1 if (-f $File);
-    return 1 if ($File =~ m@^...*://@i &&
-        defined read_href("href" => $File, "request" => 'HEAD'));
-    &Trace("valid_URL_or_file: $File is not valid") if $options{'TRACE'};
-    return 0;
-}
+    my %argv = @_;
+    my $package = $argv{'package'};
+    my $parsertype = $argv{'parsertype'} || 'XML::PPD';
+    my $location = $argv{'location'};
+    my $PPDfile = $argv{'PPDfile'};
+    my (%PPD, $contents);
 
-# Builds a fully qualified pathname or URL to a PPD for $Package.
-# If '$location' argument is given, that is used.  Otherwise, the
-# '<LOCATION>' tag for a previously installed version is used, and
-# if that fails, the default locations are looked at.
-#
-# returns undef if it can't find a valid file or URL.
-#
-sub locatePPDfile
-{
-    my ($Package, $location) = @_;
-    my $PPDfile;
     if (defined($location)) {
         if ($location =~ /[^\/]$/) { $location .= "/"; }
-        $PPDfile = $location . $Package . ".ppd";
-        undef $PPDfile unless (valid_URL_or_file($PPDfile));
-    }
-    else {
-        # Is $Package a filename or URL?
-        if (valid_URL_or_file($Package)) {
-            $PPDfile = $Package;
-        }
-        # does the package have a <LOCATION> in $PPM::PPMdat?
-        elsif ($installed_packages{$Package}) {
-            $location = $installed_packages{$Package}{'LOCATION'};
-            if ($location =~ /[^\/]$/) { $location .= "/"; }
-            $PPDfile = $location . $Package . ".ppd";
-            undef $PPDfile if (!valid_URL_or_file($PPDfile));
-        }
-
-        unless ($PPDfile) {
-            # No, try the defaults.
-            foreach (keys %repositories) {
-                my $location = $repositories{$_}{'LOCATION'};
-                if ($location =~ /[^\/]$/) { $location .= "/"; }
-                $PPDfile = $location . $Package . ".ppd";
-
-                last if (valid_URL_or_file($PPDfile));
-                undef $PPDfile;
-            }
-        }
+        $package = $location . $package . ".ppd";
     }
 
-    # return the fully qualified pathname or HREF
-    return $PPDfile;
-}
-
-# reads and parses $PPDfile, which can be a file or HREF
-sub readPPDfile
-{
-    my ($PPDfile, $Pkg) = @_;
-    my (@DATA, $CONTENTS);
-    $Pkg = 'XML::PPD' unless (defined $Pkg);
-
-    if ($PPDfile =~ /^file:\/\/.*\|/i) {
-        # $PPDfile is a local directory, let's avoid LWP by changing
+    if ($package =~ /^file:\/\/.*\|/i) {
+        # $package is a local directory, let's avoid LWP by changing
         # it to a pathname.
-        $PPDfile =~ s@^file://@@i;
-        $PPDfile =~ s@^localhost/@@i;
-        $PPDfile =~ s@\|@:@;
+        $package =~ s@^file://@@i;
+        $package =~ s@^localhost/@@i;
+        $package =~ s@\|@:@;
     }
 
-    # if $PPDfile is a SOAP request
-    if ($PPDfile =~ m#^soap://#i) {
-        my ($srvr, $pkg) = ($PPDfile =~ m@(.*)/(.+?)$@o);
-        my $client = new PPM::SOAPClient( $srvr );
-        $CONTENTS = $client->fetch_ppd( $pkg );
-    }
-    # if $PPDfile is an HREF
-    elsif ($PPDfile =~ m@^...*://@i) {
-        unless (@DATA = read_href("href" => $PPDfile, "request" => 'GET')) {
-            &Trace("readPPDfile: read_href of $PPDfile failed") if $options{'TRACE'};
-            return undef;
-        }
-        $CONTENTS = join('', @DATA);
-    } else {
-    # else $PPDfile is a regular file
+    # full path to a file?
+    if (-f $package) {
         local $/;
-        unless (open (DATAFILE, $PPDfile)) {
-            &Trace("readPPDfile: open of $PPDfile failed") if $options{'TRACE'};
-            $PPM::PPMERR = "open of $PPDfile failed: $!\n";
-            return undef;
+        unless (open (DATAFILE, $package)) {
+            &Trace("getPPDfile: open of $package failed") if $options{'TRACE'};
+            $PPM::PPMERR = "open of $package failed: $!\n";
+            return;
         }
-        $CONTENTS = <DATAFILE>;
+        $contents = <DATAFILE>;
         close(DATAFILE);
+        $$PPDfile = $package;
+    }
+    # URL?
+    elsif ($package =~ m@^...*://@i) {
+        return unless ($contents = read_href("href" => $package, 
+            "request" => 'GET'));
+        $$PPDfile = $package;
+    }
+    # does the package have a <LOCATION> in $PPM::PPMdat?
+    elsif ($installed_packages{$package}) {
+        $location = $installed_packages{$package}{'LOCATION'};
+        if ($location =~ /[^\/]$/) { $location .= "/"; }
+        $$PPDfile = $location . $package . ".ppd";
+        return %PPD if (%PPD = getPPDfile('package' => $$PPDfile, 
+            'parsertype' => $parsertype));
+        undef $$PPDfile;
+    }
+
+    # None of the above, search the repositories.
+    unless ($PPDfile && $$PPDfile) {
+        foreach (keys %repositories) {
+            my $location = $repositories{$_}{'LOCATION'};
+            if ($location =~ /[^\/]$/) { $location .= "/"; }
+            $$PPDfile = $location . $package . ".ppd";
+            return %PPD if (%PPD = getPPDfile('package' => $$PPDfile, 
+                'parsertype' => $parsertype, 'PPDfile' => \$$PPDfile));
+            undef $$PPDfile;
+        }
+        return unless $$PPDfile;
     }
 
     # take care of '&'
-    $CONTENTS =~ s/&(?!\w+;)/&amp;/go;
+    $contents =~ s/&(?!\w+;)/&amp;/go;
 
-    # Got everything we need, no just parse the PPD file
-    my $parser = new XML::Parser( Style => 'Objects', Pkg => $Pkg );
+    my $parser = new XML::Parser( Style => 'Objects', Pkg => $parsertype );
     my @parsed;
-    eval { @parsed = @{ $parser->parse( $CONTENTS ) } };
+    eval { @parsed = @{ $parser->parse( $contents ) } };
     if ($@) {
-        &Trace("readPPDfile: content of $PPDfile is not valid") if $options{'TRACE'};
-        $PPM::PPMERR = "content of $PPDfile is not valid: $!\n";
-        return undef;
+        &Trace("getPPDfile: content of $$PPDfile is not valid") if $options{'TRACE'};
+        $PPM::PPMERR = "content of $$PPDfile is not valid: $!\n";
+        return;
     }
 
-    # Validate what we've read in and output an error if something wasn't
-    # parsed properly.  As well, if we found any errors, return undef.
-    if (!$parsed[0]->rvalidate( \&PPM::parse_err ))
-        { return undef; }
+    return if (!$parsed[0]->rvalidate( \&PPM::parse_err ));
 
-    # Done, and things did seem to get parsed properly, return the structure.
     return %{$parsed[0]};
 }
 
@@ -1651,7 +1638,9 @@ sub read_config
 {
     return if $init++;
 
-    return unless (my %PPMConfig = readPPDfile($PPM::PPMdat, 'XML::PPMConfig'));
+    my %PPMConfig;
+    return unless (%PPMConfig = 
+      getPPDfile('package' => $PPM::PPMdat, 'parsertype' => 'XML::PPMConfig'));
 
     foreach my $elem (@{$PPMConfig{Kids}}) {
         my $subelem = ref $elem;
@@ -1688,15 +1677,22 @@ sub read_config
             # Previous versions of the ppm.xml had "Yes/No" values
             # for some of these options.  Change these to "1/0" if we
             # encounter them.
-            $options{'IGNORECASE'} = ($elem->{IGNORECASE} && $elem->{IGNORECASE} ne 'No');
+            $options{'IGNORECASE'} =
+                ($elem->{IGNORECASE} && $elem->{IGNORECASE} ne 'No');
             $options{'CLEAN'} = ($elem->{CLEAN} && $elem->{CLEAN} ne 'No');
-            $options{'CONFIRM'}  = ($elem->{CONFIRM} && $elem->{CONFIRM} ne 'No');
-            $options{'FORCE_INSTALL'}  = ($elem->{FORCEINSTALL} && $elem->{FORCEINSTALL} ne 'No');
+            $options{'CONFIRM'} =
+                ($elem->{CONFIRM} && $elem->{CONFIRM} ne 'No');
+            $options{'DOWNLOADSTATUS'} = 
+                defined $elem->{DOWNLOADSTATUS} ? $elem->{DOWNLOADSTATUS} : "0";
+            $options{'FORCE_INSTALL'} =
+                ($elem->{FORCEINSTALL} && $elem->{FORCEINSTALL} ne 'No');
             $options{'ROOT'} = $elem->{ROOT};
             $options{'MORE'} = $elem->{MORE};
             $options{'TRACE'} = defined $elem->{TRACE} ? $elem->{TRACE} : "0";
-            $options{'TRACEFILE'} = defined $elem->{TRACEFILE} ? $elem->{TRACEFILE} : "PPM.LOG";
-            $options{'VERBOSE'} = defined $elem->{VERBOSE} ? $elem->{VERBOSE} : "1";
+            $options{'TRACEFILE'} =
+                defined $elem->{TRACEFILE} ? $elem->{TRACEFILE} : "PPM.LOG";
+            $options{'VERBOSE'} =
+                defined $elem->{VERBOSE} ? $elem->{VERBOSE} : "1";
 
             $options{'BUILDDIR'} = $elem->{BUILDDIR};
             # Strip trailing separator
@@ -1959,7 +1955,7 @@ hash of package name keys, and package detail data.
 =item PPM::GetPPMOptions();
 
 Returns a hash containing values for all PPM internal options ('IGNORECASE',
-'CLEAN', 'CONFIRM', 'ROOT', 'BUILDDIR').
+'CLEAN', 'CONFIRM', 'ROOT', 'BUILDDIR', 'DOWNLOADSTATUS').
 
 =item PPM::SetPPMOptions("options" => %options, "save" => $save);
 

@@ -56,7 +56,7 @@ package XML::PPMConfig::REPOSITORY;
 package XML::PPMConfig::OPTIONS;
 @ISA = qw( XML::ValidatingElement );
 @rattrs = qw( IGNORECASE CLEAN CONFIRM FORCEINSTALL ROOT BUILDDIR MORE );
-@oattrs = qw( TRACE TRACEFILE VERBOSE );
+@oattrs = qw( TRACE TRACEFILE VERBOSE DOWNLOADSTATUS );
 
 ###############################################################################
 # PPMConfig Element: PPMPRECIOUS
@@ -337,6 +337,7 @@ This revision of the C<XML::PPMConfig> module implements the following DTD:
                      ROOT            CDATA   #REQUIRED
                      BUILDDIR        CDATA   #REQUIRED
                      MORE            CDATA   #REQUIRED
+                     DOWNLOADSTATUS  CDATA   #IMPLIED
                      TRACE           CDATA   #IMPLIED
                      TRACEFILE       CDATA   #IMPLIED>
 
@@ -365,7 +366,7 @@ current description of this module and is for sample purposes only.
      <PPMVER>1,0,0,0</PPMVER>
      <PLATFORM CPU="x86" OSVALUE="MSWin32" OSVERSION="4,0,0,0" />
      <OPTIONS BUILDDIR="/tmp" CLEAN="1" CONFIRM="1" FORCEINSTALL="1"
-              IGNORECASE="0" MORE="0" ROOT="/usr/local" TRACE="0" TRACEFILE="" />
+              IGNORECASE="0" MORE="0" ROOT="/usr/local" TRACE="0" TRACEFILE="" DOWNLOADSTATUS="16384" />
      <REPOSITORY LOCATION="http://www.ActiveState.com/packages"
                  NAME="ActiveState Package Repository" SUMMARYFILE="package.lst" />
      <PPMPRECIOUS>PPM;libnet;Archive-Tar;Compress-Zlib;libwww-perl</PPMPRECIOUS>

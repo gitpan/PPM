@@ -1,5 +1,5 @@
 
-This is version 2.1.1 of the Perl Package Manager, PPM.
+This is version 2.1.3 of the Perl Package Manager, PPM.
 
 See the POD contained in bin/ppm.pl for information on how to use the
 PPM client.
@@ -14,12 +14,15 @@ useful tool will be gratefully accepted.
 
 Quick Start:
 
-    o Edit lib/ppm.xml, changing 
+    o run 'perl Makefile.PL'
+    o run 'make install'
+    o Edit ppm.xml, changing 
         %OSNAME% => set to the output of 'perl -V:osname'
         %OSVERSION% => 'x,x,x,x' (e.g. '2,7,0,0' for Solaris 2.7)
         %TEMP% => set to your TEMP environment variable
         %SITELIB% => set to the output of 'perl -V:sitelib'
         %PERLDIR%  => set to the output of 'perl -V:prefix'
+    o Copy ppm.xml to your Perl sitelib directory.
 
 Needless to say, this could all be fairly easily added to
 Makefile.PL--again, patches are welcome!

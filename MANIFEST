@@ -13,10 +13,11 @@ dtd/ppmconfig.dtd
 install.ppm
 lib/PPM.pm
 lib/PPM/RelocPerl.pm
-lib/PPM/SOAPClient.pm
-lib/PPM/SOAPServer.pm
 lib/XML/PPD.pm
 lib/XML/PPMConfig.pm
 lib/XML/RepositorySummary.pm
-lib/ppm.xml
+ppm.xml
 utils/mergePPDs.pl
+utils/summary.pl
+server/ppmserver.pl
+server/PPMServer.pm

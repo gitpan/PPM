@@ -12,7 +12,6 @@ WriteMakefile(
                          'Compress::Zlib'   => 0,
                          'XML::Parser'      => 2.09,
                          'XML::Element'     => 0.10,
-                         'SOAP::Parser'     => 0.23,
                        },
     'dist'          =>  { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
 );

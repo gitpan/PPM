@@ -32,6 +32,7 @@
                     ROOT            CDATA   #REQUIRED
                     BUILDDIR        CDATA   #REQUIRED
                     MORE            CDATA   #REQUIRED
+                    DOWNLOADSTATUS  CDATA   #IMPLIED
                     TRACE           CDATA   #IMPLIED
                     TRACEFILE       CDATA   #IMPLIED
                     VERBOSE         CDATA   #IMPLIED>

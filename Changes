@@ -70,3 +70,22 @@ Version 2.1.1 (October 12, 2000 -- initial CPAN release)
     o cleaned up 'root' handling
     o various other code cleanups, portability changes
 
+Version 2.1.2 (December 11, 2000)
+
+    o substantial cleanup (reduced duplicated code, etc.) of PPM.pm code
+    o minor style changes to ppm.pl
+    o added two REPOSITORYSUMMARY generation scripts to the utils directory
+    o now avoid call to RepositoryPackages() when we have a summary
+      available
+    o new PPM SOAP server implementation in the server/ directory
+    o SOAP code rewritten to use SOAP-Lite
+    o turned off 'more' functionality unless in interactive mode
+    o fixed ignored '--location' argument to 'search'
+    o should be no more unexpected exits to the shell prompt as the 
+      result of a die() in XML::Parser, SOAP::Lite, etc. 
+
+Version 2.1.3 (Unreleased)
+    o added download status indicator
+    o refusal to install an already installed package (remove it first,
+      or use 'verify' instead)
+

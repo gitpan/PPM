@@ -1,5 +1,5 @@
 <PPMCONFIG>
-    <PPMVER>2,1,5,0</PPMVER>
+    <PPMVER>2,1,6,0</PPMVER>
     <PLATFORM CPU="x86" OSVALUE="%OSNAME%" OSVERSION="%OSVERSION%" />
     <OPTIONS BUILDDIR="%TEMP%" CLEAN="1" CONFIRM="1" DOWNLOADSTATUS="16384" FORCEINSTALL="1" IGNORECASE="1" MORE="24" ROOT="" TRACE="0" TRACEFILE="PPM.LOG" VERBOSE="1" />
     <REPOSITORY LOCATION="http://ppm.ActiveState.com/cgibin/PPM/ppmserver.pl?urn:/PPMServer" NAME="ActiveState Package Repository" SUMMARYFILE="fetch_summary"/>
@@ -11,7 +11,7 @@
 <INSTROOT>%PERLDIR%</INSTROOT>
 <INSTDATE>Fri Oct  2 16:14:32 1998</INSTDATE>
 <INSTPPD>
-<SOFTPKG NAME="PPM" VERSION="2,1,5,0">
+<SOFTPKG NAME="PPM" VERSION="2,1,6,0">
 <TITLE>PPM</TITLE>
 <ABSTRACT>Perl Package Manager: locate, install, upgrade software packages.</ABSTRACT>
 <AUTHOR>Murray Nesbitt &lt;murray@cpan.org&gt;</AUTHOR>

@@ -99,3 +99,6 @@ Version 2.1.5 (May 28, 2002)
     o fixed some nasty, 4-year-old code re: the use of MM->... instead 
       of File::Spec->...
 
+Version 2.1.6 (July 06, 2002)
+    o Randy Kobes fixed the Makefile.PL to do the right thing to ppm.xml
+

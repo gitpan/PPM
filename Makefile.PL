@@ -1,5 +1,6 @@
 use ExtUtils::MakeMaker;
 use Config;
+use strict;
 
 my @program = qw(ppm.pl);
 
@@ -16,6 +17,8 @@ WriteMakefile(
     'dist'          =>  { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
 );
 
+ppm_config();
+
 sub MY::postamble {
 
 my $copy = $^O eq 'MSWin32' ? 'copy ppm.xml blib\lib' : 'cp ppm.xml blib/lib';
@@ -31,3 +34,26 @@ $postamble .= "
 
     $postamble;
 }
+
+sub ppm_config {
+   my $ppm = 'ppm.xml';
+   my $copy = $ppm . '.in';
+   rename $ppm, $copy unless (-f $copy);
+   my %subs = ( '%OSNAME%'    => $Config{osname},
+                '%OSVERSION%' => '4,0,0,0',
+                '%TEMP%'      => $ENV{TMP} || $ENV{TEMP},
+                '%SITELIB%'   => $Config{sitelib},
+                '%PERLDIR%'   => $Config{prefix},
+              );
+   open(OLD, $copy) or die "Cannot open $copy: $!";
+   open(NEW, ">$ppm") or die "Cannot open $ppm: $!";
+   while(<OLD>) {
+      foreach my $key (keys %subs) {
+         s/$key/$subs{$key}/g;
+      }
+      print NEW $_;
+   }
+   close OLD;
+   close NEW;
+}
+

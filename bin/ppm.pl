@@ -7,7 +7,7 @@ use strict;
 
 use PPM;
 
-$PPM::VERSION = "2.1.4";
+$PPM::VERSION = "2.1.5";
 
 my %help;
 
@@ -592,7 +592,7 @@ sub genconfig
 my $PerlDir = $Config{'prefix'};
 print <<"EOF";
 <PPMCONFIG>
-    <PPMVER>2,1,4,0</PPMVER>
+    <PPMVER>2,1,5,0</PPMVER>
     <PLATFORM CPU="x86" OSVALUE="$Config{'osname'}" OSVERSION="0,0,0,0" />
     <OPTIONS BUILDDIR="$ENV{'TEMP'}" CLEAN="1" CONFIRM="1" DOWNLOADSTATUS="16384" FORCEINSTALL="1" IGNORECASE="1" MORE="0" ROOT="$PerlDir" TRACE="0" TRACEFILE="PPM.LOG" VERBOSE="1" />
     <REPOSITORY LOCATION="http://www.ActiveState.com/cgibin/PPM/ppmserver.pl?urn:/PPMServer" NAME="ActiveState Package Repository" SUMMARYFILE="fetch_summary"/>

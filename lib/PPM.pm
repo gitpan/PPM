@@ -15,6 +15,7 @@ use LWP::Simple;
 use File::Basename;
 use File::Copy;
 use File::Path;
+use File::Spec;
 use ExtUtils::Install;
 use Cwd;
 use Config;
@@ -359,18 +360,18 @@ sub InstallPackage
   InstallBlib:
     my $inst_archlib = $Config{installsitearch};
     my $inst_root = $Config{prefix};
-    my $packlist = MM->catfile("$Config{installsitearch}/auto",
+    my $packlist = File::Spec->catfile("$Config{installsitearch}/auto",
         split(/-/, $current_package{'NAME'}), ".packlist");
 
     # copied from ExtUtils::Install
-    my $INST_LIB = MM->catdir(MM->curdir,"blib","lib");
-    my $INST_ARCHLIB = MM->catdir(MM->curdir,"blib","arch");
-    my $INST_BIN = MM->catdir(MM->curdir,'blib','bin');
-    my $INST_SCRIPT = MM->catdir(MM->curdir,'blib','script');
-    my $INST_MAN1DIR = MM->catdir(MM->curdir,'blib','man1');
-    my $INST_MAN3DIR = MM->catdir(MM->curdir,'blib','man3');
-    my $INST_HTMLDIR = MM->catdir(MM->curdir,'blib','html');
-    my $INST_HTMLHELPDIR = MM->catdir(MM->curdir,'blib','htmlhelp');
+    my $INST_LIB = File::Spec->catdir(File::Spec->curdir,"blib","lib");
+    my $INST_ARCHLIB = File::Spec->catdir(File::Spec->curdir,"blib","arch");
+    my $INST_BIN = File::Spec->catdir(File::Spec->curdir,'blib','bin');
+    my $INST_SCRIPT = File::Spec->catdir(File::Spec->curdir,'blib','script');
+    my $INST_MAN1DIR = File::Spec->catdir(File::Spec->curdir,'blib','man1');
+    my $INST_MAN3DIR = File::Spec->catdir(File::Spec->curdir,'blib','man3');
+    my $INST_HTMLDIR = File::Spec->catdir(File::Spec->curdir,'blib','html');
+    my $INST_HTMLHELPDIR = File::Spec->catdir(File::Spec->curdir,'blib','htmlhelp');
 
     my $inst_script = $Config{installscript};
     my $inst_man1dir = $Config{installman1dir};

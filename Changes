@@ -95,3 +95,7 @@ Version 2.1.4 (April 12, 2001)
     o now include the previously separate XML-Element bundle
     o moved some packages from the XML::... namespace to PPM::XML::...
 
+Version 2.1.5 (May 28, 2002)
+    o fixed some nasty, 4-year-old code re: the use of MM->... instead 
+      of File::Spec->...
+

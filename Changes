@@ -1,0 +1,72 @@
+
+Version 1.1, Oct 20, 1999
+
+    o  `query' and `search' commands now include version and package
+       abstract information.
+    o  `query' and `search' output is displayed with a more pleasing layout.
+    o  Commands may now be abbreviated to a unique identifier (e.g. `sea'
+       instead of `search').
+    o  The list of PPDs available from a repository is now being cached.
+    o  `info' and `summary' commands are no longer available (since
+       `query' and `search' now display the same information).
+    o  A few other annoying bugs have been fixed (e.g. a header is no longer
+       being displayed unless `search' actually returned some results).
+
+Version 1.1.1 Oct 31, 1999
+
+    o  Added ability to relocate a Unix module (RelocPerl.pm)
+    o  ppm.pl gets installed as 'ppm' on Unix platforms
+
+Version 1.1.2 Nov 14, 1999
+
+    o  Fixed a bug where .packlist would get created as a directory when
+       using UNC paths.
+
+Version 1.1.3 Feb 01, 2000
+
+    o  Options that aren't explicitly set during save now retain their
+       default values (problem with VPM).
+    o  Cleaned up '$root' code in InstallPackages();  code comparing
+       ROOT to $Config{prefix} now ignores case.
+    o  Cleaned up incorrect use of defined() on aggregates.
+
+Version 1.1.4 March 01, 2000
+
+    o Not finding a PPD during a verify is no longer an error condition.
+    o ppm.xml <LOCATION> entries for default packages now points to the
+      correct place (soap://...).
+    o install.ppm makes above change to ppm.xml during PPM upgrade.
+    o Check to make sure an implementation exists (not just a PPD) before
+      removing an existing package prior to upgrade.
+    o Workaround for a core bug with (?i) in an empty regex. This caused,
+      for example, "ppm query" to return nothing.
+    o Fix for getcwd() returning a bare drive letter when in the root
+      directory of a drive.
+
+Version 2.0 July 1, 2000
+
+    o fixed bug where 'case' settings didn't work in command-line mode.
+    o Added 'purge' and 'refresh' options.
+    o 'eval' calls to XML::Parser for more graceful handling of bad PPDs.
+    o re-write of the way online help is created (thanks Jan Dubois).
+    o normalize command-line and interactive option prefix to '--'.
+    o got rid of ghastly "Yes/No" settings for certain options.
+    o --searchtag option is gone: use --author or --abstract instead.
+    o added documented but missing [--case|nocase] functionality with 
+      query and search commands.
+    o cleaned up code that did case-sensitivity handling for searches
+    o substantial re-write of the ppm.pl front-end
+    o overhauled the POD section
+    o added a PPD merging script to the utils directory
+
+Version 2.1 (July 31, 2000)
+
+    o added HTTP_proxy_agent environment variable for proxies that require
+      a particular User-Agent parameter
+
+Version 2.1.1 (October 12, 2000 -- initial CPAN release)
+
+    o cleaned up search code in QueryInstalledPackages()
+    o cleaned up 'root' handling
+    o various other code cleanups, portability changes
+

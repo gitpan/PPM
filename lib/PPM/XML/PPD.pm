@@ -1,21 +1,21 @@
 #
-# XML::PPD
+# PPM::XML::PPD
 #
 # Definition of the PPD file format.
 #
 ###############################################################################
 
-use XML::ValidatingElement;
+use PPM::XML::ValidatingElement;
 use Exporter;
 
-$XML::PPD::revision = '$Id: PPD.pm,v 1.2 2000/01/27 19:33:17 graham Exp $';
-$XML::PPD::VERSION  = '0.01';
+$PPM::XML::PPD::revision = '$Id: PPD.pm,v 1.2 2000/01/27 19:33:17 graham Exp $';
+$PPM::XML::PPD::VERSION  = '0.01';
 
 ###############################################################################
-# Set up XML::PPD to export it's sub-packages so that we can use them in other
-# XML documents without too much effort.
+# Set up PPM::XML::PPD to export its sub-packages so that we can use them in 
+# other XML documents without too much effort.
 ###############################################################################
-package XML::PPD;
+package PPM::XML::PPD;
 @ISA = qw( Exporter );
 %EXPORT_TAGS = ( 'elements' =>
                  [ '%SOFTPKG::', '%IMPLEMENTATION::', '%DEPENDENCY::',
@@ -30,8 +30,8 @@ Exporter::export_ok_tags( 'elements' );
 ###############################################################################
 # PPD Element: SOFTPKG
 ###############################################################################
-package XML::PPD::SOFTPKG;
-@ISA = qw( XML::ValidatingElement );
+package PPM::XML::PPD::SOFTPKG;
+@ISA = qw( PPM::XML::ValidatingElement );
 @oattrs = qw( VERSION );
 @rattrs = qw( NAME );
 @okids  = qw( ABSTRACT AUTHOR IMPLEMENTATION LICENSE TITLE INSTALL UNINSTALL );
@@ -39,33 +39,33 @@ package XML::PPD::SOFTPKG;
 ###############################################################################
 # PPD Element: TITLE
 ###############################################################################
-package XML::PPD::TITLE;
-@ISA = qw( XML::ValidatingElement );
+package PPM::XML::PPD::TITLE;
+@ISA = qw( PPM::XML::ValidatingElement );
 
 ###############################################################################
 # PPD Element: ABSTRACT
 ###############################################################################
-package XML::PPD::ABSTRACT;
-@ISA = qw( XML::ValidatingElement );
+package PPM::XML::PPD::ABSTRACT;
+@ISA = qw( PPM::XML::ValidatingElement );
 
 ###############################################################################
 # PPD Element: AUTHOR
 ###############################################################################
-package XML::PPD::AUTHOR;
-@ISA = qw( XML::ValidatingElement );
+package PPM::XML::PPD::AUTHOR;
+@ISA = qw( PPM::XML::ValidatingElement );
 
 ###############################################################################
 # PPD Element: LICENSE
 ###############################################################################
-package XML::PPD::LICENSE;
-@ISA = qw( XML::ValidatingElement );
+package PPM::XML::PPD::LICENSE;
+@ISA = qw( PPM::XML::ValidatingElement );
 @rattrs = qw( HREF );
 
 ###############################################################################
 # PPD Element: IMPLEMENTATION
 ###############################################################################
-package XML::PPD::IMPLEMENTATION;
-@ISA = qw( XML::ValidatingElement );
+package PPM::XML::PPD::IMPLEMENTATION;
+@ISA = qw( PPM::XML::ValidatingElement );
 @okids = qw( DEPENDENCY INSTALL LANGUAGE OS OSVERSION PERLCORE PROCESSOR
              UNINSTALL ARCHITECTURE );
 @rkids = qw( CODEBASE );
@@ -73,8 +73,8 @@ package XML::PPD::IMPLEMENTATION;
 ###############################################################################
 # PPD Element: OS
 ###############################################################################
-package XML::PPD::OS;
-@ISA = qw( XML::ValidatingElement );
+package PPM::XML::PPD::OS;
+@ISA = qw( PPM::XML::ValidatingElement );
 @rattrs = qw( VALUE );
 sub validate_possible_attrs
 {
@@ -103,8 +103,8 @@ sub compatibility_check
 ###############################################################################
 # PPD Element: OSVERSION
 ###############################################################################
-package XML::PPD::OSVERSION;
-@ISA = qw( XML::ValidatingElement );
+package PPM::XML::PPD::OSVERSION;
+@ISA = qw( PPM::XML::ValidatingElement );
 @rattrs = qw( VALUE );
 sub validate_possible_attrs
 {
@@ -133,8 +133,8 @@ sub compatibility_check
 ###############################################################################
 # PPD Element: PROCESSOR
 ###############################################################################
-package XML::PPD::PROCESSOR;
-@ISA = qw( XML::ValidatingElement );
+package PPM::XML::PPD::PROCESSOR;
+@ISA = qw( PPM::XML::ValidatingElement );
 @rattrs = qw( VALUE );
 sub validate_possible_attrs
 {
@@ -163,8 +163,8 @@ sub compatibility_check
 ###############################################################################
 # PPD Element: ARCHITECTURE
 ###############################################################################
-package XML::PPD::ARCHITECTURE;
-@ISA = qw( XML::ValidatingElement );
+package PPM::XML::PPD::ARCHITECTURE;
+@ISA = qw( PPM::XML::ValidatingElement );
 @rattrs = qw( VALUE );
 sub validate_possible_attrs
 {
@@ -193,45 +193,45 @@ sub compatibility_check
 ###############################################################################
 # PPD Element: CODEBASE
 ###############################################################################
-package XML::PPD::CODEBASE;
-@ISA = qw( XML::ValidatingElement );
+package PPM::XML::PPD::CODEBASE;
+@ISA = qw( PPM::XML::ValidatingElement );
 @oattrs = qw( FILENAME );
 @rattrs = qw( HREF );
 
 ###############################################################################
 # PPD Element: DEPENDENCY
 ###############################################################################
-package XML::PPD::DEPENDENCY;
-@ISA = qw( XML::ValidatingElement );
+package PPM::XML::PPD::DEPENDENCY;
+@ISA = qw( PPM::XML::ValidatingElement );
 @rattrs = qw( NAME );
 @oattrs = qw( VERSION );
 
 ###############################################################################
 # PPD Element: LANGUAGE
 ###############################################################################
-package XML::PPD::LANGUAGE;
-@ISA = qw( XML::ValidatingElement );
+package PPM::XML::PPD::LANGUAGE;
+@ISA = qw( PPM::XML::ValidatingElement );
 @rattrs = qw( VALUE );
 
 ###############################################################################
 # PPD Element: PERLCORE
 ###############################################################################
-package XML::PPD::PERLCORE;
-@ISA = qw( XML::ValidatingElement );
+package PPM::XML::PPD::PERLCORE;
+@ISA = qw( PPM::XML::ValidatingElement );
 @rattrs = qw( VERSION );
 
 ###############################################################################
 # PPD Element: INSTALL
 ###############################################################################
-package XML::PPD::INSTALL;
-@ISA = qw( XML::ValidatingElement );
+package PPM::XML::PPD::INSTALL;
+@ISA = qw( PPM::XML::ValidatingElement );
 @oattrs = qw( HREF EXEC );
 
 ###############################################################################
 # PPD Element: UNINSTALL
 ###############################################################################
-package XML::PPD::UNINSTALL;
-@ISA = qw( XML::ValidatingElement );
+package PPM::XML::PPD::UNINSTALL;
+@ISA = qw( PPM::XML::ValidatingElement );
 @oattrs = qw( HREF EXEC );
 
 __END__
@@ -242,21 +242,21 @@ __END__
 
 =head1 NAME
 
-XML::PPD - PPD file format and XML parsing elements
+PPM::XML::PPD - PPD file format and XML parsing elements
 
 =head1 SYNOPSIS
 
  use XML::Parser;
- use XML::PPD;
+ use PPM::XML::PPD;
 
- $p = new XML::Parser( Style => 'Objects', Pkg => 'XML::PPD' );
+ $p = new PPM::XML::Parser( Style => 'Objects', Pkg => 'PPM::XML::PPD' );
  ...
 
 =head1 DESCRIPTION
 
 This module provides a set of classes for parsing PPD files using the
 C<XML::Parser> module.  Each of the classes is derived from
-C<XML::ValidatingElement>, with optional/required attributes/children
+C<PPM::XML::ValidatingElement>, with optional/required attributes/children
 enforced.
 
 =head1 MAJOR ELEMENTS
@@ -491,7 +491,7 @@ PPM itself ($^X) is used to execute the install script.
 The DTD for PPD documents is available from the ActiveState website and the
 latest version can be found at http://www.ActiveState.com/PPM/DTD/ppd.dtd
 
-This revision of the C<XML::PPD> module implements the following DTD:
+This revision of the C<PPM::XML::PPD> module implements the following DTD:
 
  <!ELEMENT SOFTPKG   (ABSTRACT | AUTHOR | IMPLEMENTATION | LICENSE | TITLE)*>
  <!ATTLIST SOFTPKG   NAME    CDATA #REQUIRED
@@ -598,8 +598,8 @@ v0.1 - Initial release
 
 =head1 SEE ALSO
 
-L<XML::ValidatingElement>,
-L<XML::Element>,
+L<PPM::XML::ValidatingElement>,
+L<PPM::XML::Element>,
 L<XML::Parser>,
 OSD Specification (http://www.microsoft.com/standards/osd/)
 

@@ -21,8 +21,8 @@ use Config;
 use PPM::RelocPerl;
 use SOAP::Lite;
 
-use XML::PPD;
-use XML::PPMConfig;
+use PPM::XML::PPD;
+use PPM::XML::PPMConfig;
 use XML::Parser;
 use Archive::Tar;
 
@@ -249,9 +249,9 @@ sub InstallPackage
 
     parsePPD(%PPD);
     if (!$current_package{'CODEBASE'} && !$current_package{'INSTALL_HREF'}) {
-        &Trace("Could not locate a PPM binary of '$package' for this platform")
+        &Trace("Read a PPD for '$package', but it is not intended for this build of Perl ($Config{archname})")
             if $options{'TRACE'};
-        $PPM::PPMERR = "Could not locate a PPM binary of '$package' for this platform";
+        $PPM::PPMERR = "Read a PPD for '$package', but it is not intended for this build of Perl ($Config{archname})";
         return 0;
     }
 
@@ -319,7 +319,8 @@ sub InstallPackage
     # CODEBASE is a URL
     if ($current_package{'CODEBASE'} =~ m@^...*://@i) {
         return 0 unless read_href('href' => "$current_package{'CODEBASE'}",
-            'target' => "$install_dir/$basename", 'request' => "GET");
+            'target' => "$install_dir/$basename", 'request' => "GET",
+            'progress' => 1);
     }
     # CODEBASE is a full pathname
     elsif (-f $current_package{'CODEBASE'}) {
@@ -336,7 +337,7 @@ sub InstallPackage
     else {
         return 0 unless read_href('target' => "$install_dir/$basename",
             'href' => "$path/$current_package{'CODEBASE'}",
-            'request' => 'GET');
+            'request' => 'GET', 'progress' => 1);
     }
 
     my $cwd = getcwd();
@@ -620,9 +621,9 @@ sub VerifyPackage
 
     parsePPD(%comparePPD);
     unless ($current_package{'CODEBASE'} || $current_package{'INSTALL_HREF'}) {
-        &Trace("Could not locate a PPM binary of '$package' for this platform")
+        &Trace("Read a PPD for '$package', but it is not intended for this build of Perl ($Config{archname})")
             if $options{'TRACE'};
-        $PPM::PPMERR = "Could not locate a PPM binary of '$package' for this platform";
+        $PPM::PPMERR = "Read a PPD for '$package', but it is not intended for this build of Perl ($Config{archname})";
         return undef;
     }
     my @compare_version = split (',',  $current_package{'VERSION'});
@@ -810,7 +811,7 @@ sub parse_summary
     $data =~ s/&(?!\w+;)/&amp;/go;
 
     my $parser = new XML::Parser( Style => 'Objects', 
-        Pkg => 'XML::RepositorySummary' );
+        Pkg => 'PPM::XML::RepositorySummary' );
     eval { @parsed = @{ $parser->parse( $data ) } };
     if ($@) {
         &Trace("parse_summary: content of summary file is not valid") 
@@ -847,8 +848,8 @@ sub save_options
     read_config();
     my %PPMConfig;
     # Read in the existing PPM configuration file
-    return unless (%PPMConfig = 
-      getPPDfile('package' => $PPM::PPMdat, 'parsertype' => 'XML::PPMConfig'));
+    return unless (%PPMConfig = getPPDfile('package' => $PPM::PPMdat,
+        'parsertype' => 'PPM::XML::PPMConfig'));
 
     # Remove all of the declarations for REPOSITORY and PPMPRECIOUS;
     # we'll output these from the lists we've got in memory instead.
@@ -883,16 +884,16 @@ sub save_options
                      ($idx == $#{$PPMConfig{Kids}}));
 
         # Insert our PPMPRECIOUS
-        my $chardata = new XML::PPMConfig::Characters;
+        my $chardata = new PPM::XML::PPMConfig::Characters;
         $chardata->{Text} = join( ';', @required_packages );
-        my $precious = new XML::PPMConfig::PPMPRECIOUS;
+        my $precious = new PPM::XML::PPMConfig::PPMPRECIOUS;
         push( @{$precious->{Kids}}, $chardata );
         splice( @{$PPMConfig{Kids}}, $idx, 0, $precious );
 
         # Insert the list of repositories we've got
         my $rep_name;
         foreach $rep_name (keys %repositories) {
-            my $repository = new XML::PPMConfig::REPOSITORY;
+            my $repository = new PPM::XML::PPMConfig::REPOSITORY;
             %{$repository} = 
                 map { $_ => $repositories{$rep_name}{$_} } 
                     keys %{$repositories{$rep_name}};
@@ -903,7 +904,7 @@ sub save_options
     }
     # Take the data structure we've got and bless it into a PPMCONFIG object so
     # that we can output it.
-    my $cfg = bless \%PPMConfig, 'XML::PPMConfig::PPMCONFIG';
+    my $cfg = bless \%PPMConfig, 'PPM::XML::PPMConfig::PPMCONFIG';
 
     # Open the output file and output the PPM config file
     unless (open( DAT, ">$PPM::PPMdat" )) {
@@ -1016,6 +1017,7 @@ sub read_href
     my $href = $argv{'href'};
     my $request = $argv{'request'};
     my $target = $argv{'target'};
+    my $progress = $argv{'progress'}; # display status of binary transfers
     my ($proxy_user, $proxy_pass);
     # If this is a SOAP URL, handle it differently than FTP/HTTP/file.
     if ($href =~ m#^(http://.*)\?(.*)#i) {
@@ -1079,9 +1081,16 @@ sub read_href
     }
 
     ($response, $bytes_transferred) = (undef, 0);
-    $ua->request($req, \&lwp_callback, ($options{'DOWNLOADSTATUS'} || 4096));
-    print "\n" if ($PPM::PPMShell && $options{'DOWNLOADSTATUS'});
-    if ($response->is_success) {
+    if ($progress) {
+        # display the 'progress indicator'
+        $ua->request($req, \&lwp_callback, 
+            ($options{'DOWNLOADSTATUS'} || 4096));
+        print "\n" if ($PPM::PPMShell && $options{'DOWNLOADSTATUS'});
+    }
+    else {
+        $response = $ua->request($req);
+    }
+    if ($response && $response->is_success) {
         if ($target) {
             unless (open(OUT, ">$target")) {
                 &Trace("read_href: Couldn't open $target for writing")
@@ -1095,10 +1104,16 @@ sub read_href
         }
         return $response->content;
     }
-    &Trace("read_href: Error reading $href: " . $response->code . " " . 
-        $response->message) if $options{'TRACE'};
-    $PPM::PPMERR = "Error reading $href: " . $response->code . " " . 
-        $response->message . "\n";
+    if ($response) {
+        &Trace("read_href: Error reading $href: " . $response->code . " " . 
+            $response->message) if $options{'TRACE'};
+        $PPM::PPMERR = "Error reading $href: " . $response->code . " " . 
+            $response->message . "\n";
+    }
+    else {
+        &Trace("read_href: Error reading $href") if $options{'TRACE'};
+        $PPM::PPMERR = "Error reading $href\n";
+    }
     return;
 }
 
@@ -1136,124 +1151,127 @@ sub PPMdat_add_package
 
     # Build the new SOFTPKG data structure for this package we're adding.
     my $softpkg =
-        new XML::PPMConfig::SOFTPKG( NAME    => $package,
+        new PPM::XML::PPMConfig::SOFTPKG( NAME    => $package,
                                      VERSION => $current_package{VERSION}
                                    );
 
     if (defined $current_package{TITLE}) {
-        my $chardata =
-            new XML::PPMConfig::Characters( Text => $current_package{TITLE} );
-        my $newelem = new XML::PPMConfig::TITLE;
+        my $chardata = new PPM::XML::PPMConfig::Characters( 
+            Text => $current_package{TITLE} );
+        my $newelem = new PPM::XML::PPMConfig::TITLE;
         push( @{$newelem->{Kids}}, $chardata );
         push( @{$softpkg->{Kids}}, $newelem );
     }
 
     if (defined $current_package{ABSTRACT}) {
-        my $chardata =
-            new XML::PPMConfig::Characters( Text => $current_package{ABSTRACT});
-        my $newelem = new XML::PPMConfig::ABSTRACT;
+        my $chardata = new PPM::XML::PPMConfig::Characters(
+            Text => $current_package{ABSTRACT});
+        my $newelem = new PPM::XML::PPMConfig::ABSTRACT;
         push( @{$newelem->{Kids}}, $chardata );
         push( @{$softpkg->{Kids}}, $newelem );
     }
 
     if (defined $current_package{AUTHOR}) {
-        my $chardata =
-            new XML::PPMConfig::Characters( Text => $current_package{AUTHOR} );
-        my $newelem = new XML::PPMConfig::AUTHOR;
+        my $chardata = new PPM::XML::PPMConfig::Characters(
+            Text => $current_package{AUTHOR} );
+        my $newelem = new PPM::XML::PPMConfig::AUTHOR;
         push( @{$newelem->{Kids}}, $chardata );
         push( @{$softpkg->{Kids}}, $newelem );
     }
 
     if (defined $current_package{LICENSE}) {
-        my $chardata =
-            new XML::PPMConfig::Characters( Text => $current_package{LICENSE});
-        my $newelem = new XML::PPMConfig::LICENSE;
+        my $chardata = new PPM::XML::PPMConfig::Characters(
+            Text => $current_package{LICENSE});
+        my $newelem = new PPM::XML::PPMConfig::LICENSE;
         push( @{$newelem->{Kids}}, $chardata );
         push( @{$softpkg->{Kids}}, $newelem );
     }
 
-    my $impl = new XML::PPMConfig::IMPLEMENTATION;
+    my $impl = new PPM::XML::PPMConfig::IMPLEMENTATION;
     push( @{$softpkg->{Kids}}, $impl );
 
     if (defined $current_package{PERLCORE_VER}) {
-        my $newelem = new XML::PPMConfig::PERLCORE( VERSION => $current_package{PERLCORE_VER} );
+        my $newelem = new PPM::XML::PPMConfig::PERLCORE(
+            VERSION => $current_package{PERLCORE_VER} );
         push( @{$impl->{Kids}}, $newelem );
     }
 
     foreach (keys %{$current_package{DEPEND}}) {
-        my $newelem = new XML::PPMConfig::DEPENDENCY( NAME => $_, VERSION => $current_package{DEPEND}{$_} );
+        my $newelem = new PPM::XML::PPMConfig::DEPENDENCY(
+            NAME => $_, VERSION => $current_package{DEPEND}{$_} );
         push( @{$impl->{Kids}}, $newelem );
     }
 
-    my $codebase = new XML::PPMConfig::CODEBASE( HREF => $current_package{CODEBASE} );
+    my $codebase = new PPM::XML::PPMConfig::CODEBASE(
+        HREF => $current_package{CODEBASE} );
     push( @{$impl->{Kids}}, $codebase );
 
-    my $inst = new XML::PPMConfig::INSTALL;
+    my $inst = new PPM::XML::PPMConfig::INSTALL;
     push( @{$impl->{Kids}}, $inst );
     if (defined $current_package{INSTALL_EXEC})
         { $inst->{EXEC} = $current_package{INSTALL_EXEC}; }
     if (defined $current_package{INSTALL_HREF})
         { $inst->{HREF} = $current_package{INSTALL_HREF}; }
     if (defined $current_package{INSTALL_SCRIPT}) {
-        my $chardata =
-            new XML::PPMConfig::Characters( Text => $current_package{INSTALL_SCRIPT} );
+        my $chardata = new PPM::XML::PPMConfig::Characters(
+            Text => $current_package{INSTALL_SCRIPT} );
         push( @{$inst->{Kids}}, $chardata );
     }
 
-    my $uninst = new XML::PPMConfig::UNINSTALL;
+    my $uninst = new PPM::XML::PPMConfig::UNINSTALL;
     push( @{$impl->{Kids}}, $uninst );
     if (defined $current_package{UNINSTALL_EXEC})
         { $uninst->{EXEC} = $current_package{UNINSTALL_EXEC}; }
     if (defined $current_package{UNINSTALL_HREF})
         { $uninst->{HREF} = $current_package{UNINSTALL_HREF}; }
     if (defined $current_package{UNINSTALL_SCRIPT}) {
-        my $chardata =
-            new XML::PPMConfig::Characters( Text => $current_package{UNINSTALL_SCRIPT} );
+        my $chardata = new PPM::XML::PPMConfig::Characters(
+            Text => $current_package{UNINSTALL_SCRIPT} );
         push( @{$uninst->{Kids}}, $chardata );
     }
 
     # Then, build the PACKAGE object and stick the SOFTPKG inside of it.
-    my $pkg = new XML::PPMConfig::PACKAGE( NAME => $package );
+    my $pkg = new PPM::XML::PPMConfig::PACKAGE( NAME => $package );
 
     if ($location) {
-        my $chardata = new XML::PPMConfig::Characters( Text => $location );
-        my $newelem = new XML::PPMConfig::LOCATION;
+        my $chardata = new PPM::XML::PPMConfig::Characters( Text => $location );
+        my $newelem = new PPM::XML::PPMConfig::LOCATION;
         push( @{$newelem->{Kids}}, $chardata );
         push( @{$pkg->{Kids}}, $newelem );
     }
 
     if ($packlist) {
-        my $chardata = new XML::PPMConfig::Characters( Text => $packlist );
-        my $newelem = new XML::PPMConfig::INSTPACKLIST;
+        my $chardata = new PPM::XML::PPMConfig::Characters( Text => $packlist );
+        my $newelem = new PPM::XML::PPMConfig::INSTPACKLIST;
         push( @{$newelem->{Kids}}, $chardata );
         push( @{$pkg->{Kids}}, $newelem );
     }
 
     if ($inst_root) {
-        my $chardata = new XML::PPMConfig::Characters( Text => $inst_root );
-        my $newelem = new XML::PPMConfig::INSTROOT;
+        my $chardata = new PPM::XML::PPMConfig::Characters( Text => $inst_root );
+        my $newelem = new PPM::XML::PPMConfig::INSTROOT;
         push( @{$newelem->{Kids}}, $chardata );
         push( @{$pkg->{Kids}}, $newelem );
     }
 
     if ($time_str) {
-        my $chardata = new XML::PPMConfig::Characters( Text => $time_str);
-        my $newelem = new XML::PPMConfig::INSTDATE;
+        my $chardata = new PPM::XML::PPMConfig::Characters( Text => $time_str);
+        my $newelem = new PPM::XML::PPMConfig::INSTDATE;
         push( @{$newelem->{Kids}}, $chardata );
         push( @{$pkg->{Kids}}, $newelem );
     }
 
-    my $instppd = new XML::PPMConfig::INSTPPD;
+    my $instppd = new PPM::XML::PPMConfig::INSTPPD;
     push( @{$instppd->{Kids}}, $softpkg );
     push( @{$pkg->{Kids}}, $instppd );
 
     # Now that we've got the structure built, read in the existing PPM
     # Configuration file, add this to it, and spit it back out.
     my %PPMConfig;
-    return 1 unless (%PPMConfig = 
-      getPPDfile('package' => $PPM::PPMdat, 'parsertype' => 'XML::PPMConfig'));
+    return 1 unless (%PPMConfig = getPPDfile('package' => $PPM::PPMdat,
+        'parsertype' => 'PPM::XML::PPMConfig'));
     push( @{$PPMConfig{Kids}}, $pkg );
-    my $cfg = bless \%PPMConfig, 'XML::PPMConfig::PPMCONFIG';
+    my $cfg = bless \%PPMConfig, 'PPM::XML::PPMConfig::PPMCONFIG';
 
     unless (open( DAT, ">$PPM::PPMdat" )) {
         &Trace("open of $PPM::PPMdat failed: $!") if $options{'TRACE'};
@@ -1276,8 +1294,8 @@ sub PPMdat_remove_package
 
     # Read in the existing PPM configuration file
     my %PPMConfig;
-    return 1 unless (%PPMConfig = 
-      getPPDfile('package' => $PPM::PPMdat, 'parsertype' => 'XML::PPMConfig'));
+    return 1 unless (%PPMConfig = getPPDfile('package' => $PPM::PPMdat,
+        'parsertype' => 'PPM::XML::PPMConfig'));
 
     # Try to find the package that we're supposed to be removing, and yank it
     # out of the list of installed packages.
@@ -1291,7 +1309,7 @@ sub PPMdat_remove_package
 
     # Take the data structure we've got and bless it into a PPMCONFIG object so
     # that we can output it again.
-    my $cfg = bless \%PPMConfig, 'XML::PPMConfig::PPMCONFIG';
+    my $cfg = bless \%PPMConfig, 'PPM::XML::PPMConfig::PPMCONFIG';
 
     # Now that we've removed the package, save the configuration file back out.
     unless (open( DAT, ">$PPM::PPMdat" )) {
@@ -1546,7 +1564,7 @@ sub getPPDfile
 {
     my %argv = @_;
     my $package = $argv{'package'};
-    my $parsertype = $argv{'parsertype'} || 'XML::PPD';
+    my $parsertype = $argv{'parsertype'} || 'PPM::XML::PPD';
     my $location = $argv{'location'};
     my $PPDfile = $argv{'PPDfile'};
     my (%PPD, $contents);
@@ -1639,8 +1657,8 @@ sub read_config
     return if $init++;
 
     my %PPMConfig;
-    return unless (%PPMConfig = 
-      getPPDfile('package' => $PPM::PPMdat, 'parsertype' => 'XML::PPMConfig'));
+    return unless (%PPMConfig = getPPDfile('package' => $PPM::PPMdat,
+        'parsertype' => 'PPM::XML::PPMConfig'));
 
     foreach my $elem (@{$PPMConfig{Kids}}) {
         my $subelem = ref $elem;
@@ -2035,7 +2053,7 @@ environment variable.
 =item package.ppd
 
 A description of a software package, in Perl Package Distribution (PPD)
-format.  More information on this file format can be found in L<XML::PPD>.
+format.  More information on this file format can be found in L<PPM::XML::PPD>.
 PPM stores a copy of the PPD it uses to install or upgrade any software
 package.
 
@@ -2045,17 +2063,17 @@ The XML format file in which PPM stores configuration and package
 installation information.  This file is created when PPM is installed,
 and under normal circumstances should never require modification other
 than by PPM itself.  For more information on this file, refer to
-L<XML::PPMConfig>.
+L<PPM::XML::PPMConfig>.
 
 =back
 
 =head1 AUTHOR
 
-Murray Nesbitt, E<lt>F<murray@ActiveState.com>E<gt>
+Murray Nesbitt, E<lt>F<murray@cpan.org>E<gt>
 
 =head1 SEE ALSO
 
-L<XML::PPMConfig>
+L<PPM::XML::PPMConfig>
 .
 
 =cut

@@ -84,8 +84,14 @@ Version 2.1.2 (December 11, 2000)
     o should be no more unexpected exits to the shell prompt as the 
       result of a die() in XML::Parser, SOAP::Lite, etc. 
 
-Version 2.1.3 (Unreleased)
+Version 2.1.4 (April 12, 2001)
     o added download status indicator
     o refusal to install an already installed package (remove it first,
       or use 'verify' instead)
+    o s/::/-/ translation of package names now happens from command-line
+      mode as well
+    o clarified some error reporting
+    o added 'getconfig' command
+    o now include the previously separate XML-Element bundle
+    o moved some packages from the XML::... namespace to PPM::XML::...
 

@@ -7,7 +7,7 @@
 #
 
 use XML::Parser;
-use XML::PPMConfig;
+use PPM::XML::PPMConfig;
 use strict;
 
 my $destdir = shift;
@@ -24,7 +24,7 @@ foreach my $dir (@ARGV) {
 }
 
 foreach my $file (sort keys %files) {
-    my $parser = new XML::Parser(Style => 'Objects', Pkg => 'XML::PPD');
+    my $parser = new XML::Parser(Style => 'Objects', Pkg => 'PPM::XML::PPD');
     my $basefile = shift (@{$files{$file}});
     my $baseppd = $parser->parsefile($basefile);
 
@@ -47,7 +47,7 @@ foreach my $file (sort keys %files) {
     open(FILE, ">$destdir/$file") or 
         die "Could not open $destdir/$file : $!";
     my $oldfh = select(FILE);
-    my $Config_ref = bless($baseppd->[0], "XML::PPMConfig::SOFTPKG");
+    my $Config_ref = bless($baseppd->[0], "PPM::XML::PPMConfig::SOFTPKG");
     $Config_ref->output();
     select($oldfh);
     close(FILE);

@@ -13,11 +13,14 @@ dtd/ppmconfig.dtd
 install.ppm
 lib/PPM.pm
 lib/PPM/RelocPerl.pm
-lib/XML/PPD.pm
-lib/XML/PPMConfig.pm
-lib/XML/RepositorySummary.pm
+lib/PPM/XML/Element.pm
+lib/PPM/XML/ValidatingElement.pm
+lib/PPM/XML/PPD.pm
+lib/PPM/XML/PPMConfig.pm
+lib/PPM/XML/RepositorySummary.pm
 ppm.xml
 utils/mergePPDs.pl
 utils/summary.pl
+utils/searchsummary.pl
 server/ppmserver.pl
 server/PPMServer.pm

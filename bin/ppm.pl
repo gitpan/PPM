@@ -7,7 +7,7 @@ use strict;
 
 use PPM;
 
-$PPM::VERSION = "2.1.3";
+$PPM::VERSION = "2.1.4";
 
 my %help;
 
@@ -55,6 +55,11 @@ if ($#ARGV == 0 && $ARGV[0] eq 'genconfig') {
     exit 0;
 }
 
+if ($#ARGV == 0 && $ARGV[0] eq 'getconfig') {
+    print $PPM::PPMdat;
+    exit 0;
+}
+
 my %options = PPM::GetPPMOptions();
 my $location;
 
@@ -81,7 +86,6 @@ if ($#ARGV == -1 || ($#ARGV == 0 && $ARGV[0] =~ /^${prefix_pattern}location/)) {
         last unless defined ($_ = <> );
         chomp;
         s/^\s+//;
-        s/::/-/g;
         @ARGV = split(/\s+/, $_);
         next unless @ARGV;
         # exit/quit
@@ -99,6 +103,10 @@ exit exec_command();
 sub exec_command
 {
     my $cmd = lc shift @ARGV;
+
+    for (@ARGV) {
+        s/::/-/g;
+    }
 
     # help
     if (command($cmd, "|help")) {
@@ -584,7 +592,7 @@ sub genconfig
 my $PerlDir = $Config{'prefix'};
 print <<"EOF";
 <PPMCONFIG>
-    <PPMVER>2,1,3,0</PPMVER>
+    <PPMVER>2,1,4,0</PPMVER>
     <PLATFORM CPU="x86" OSVALUE="$Config{'osname'}" OSVERSION="0,0,0,0" />
     <OPTIONS BUILDDIR="$ENV{'TEMP'}" CLEAN="1" CONFIRM="1" DOWNLOADSTATUS="16384" FORCEINSTALL="1" IGNORECASE="1" MORE="0" ROOT="$PerlDir" TRACE="0" TRACEFILE="PPM.LOG" VERBOSE="1" />
     <REPOSITORY LOCATION="http://www.ActiveState.com/cgibin/PPM/ppmserver.pl?urn:/PPMServer" NAME="ActiveState Package Repository" SUMMARYFILE="fetch_summary"/>
@@ -731,14 +739,18 @@ See also: 'case' option.
 =item Error Recovery
 
  ppm genconfig
+ ppm getconfig
 
-This command will print a valid PPM config file (ppm.xml) to STDOUT.  This 
-can be useful if the PPM config file ever gets damaged leaving PPM
+The genconfig command will print a valid PPM config file (ppm.xml) to STDOUT.
+This can be useful if the PPM config file ever gets damaged leaving PPM
 unusable.
 
 If required, this command should be run from a shell prompt:
 
     C:\Perl\site\lib> ppm genconfig > ppm.xml
+
+The getconfig command prints the location of the PPM configuration file
+used at PPM startup.
 
 =item Options
 
@@ -942,7 +954,7 @@ in the current directory.
 
 =head1 AUTHOR
 
-Murray Nesbitt, E<lt>F<murray@ActiveState.com>E<gt>
+Murray Nesbitt, E<lt>F<murray@cpan.org>E<gt>
 
 =head1 CREDITS
 

@@ -8,7 +8,7 @@
 # for somewhat more efficient server-side searches than a full-blown
 # REPOSITORYSUMMARY.
 #
-# Author: Murray Nesbitt (murray@activestate.com)
+# Author: Murray Nesbitt (murray@cpan.org)
 #
 
 use strict;

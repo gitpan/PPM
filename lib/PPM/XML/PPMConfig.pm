@@ -1,107 +1,107 @@
 #
-# XML::PPMConfig
+# PPM::XML::PPMConfig
 #
 # Definition of the PPMConfig file format; configuration options for the Perl
 # Package Manager.
 #
 ###############################################################################
 
-$XML::PPMConfig::revision = '$Id: PPMConfig.pm,v 1.1.1.1 2000/01/26 17:39:19 graham Exp $';
-$XML::PPMConfig::VERSION  = '0.01';
+$PPM::XML::PPMConfig::revision = '$Id: PPMConfig.pm,v 1.1.1.1 2000/01/26 17:39:19 graham Exp $';
+$PPM::XML::PPMConfig::VERSION  = '0.01';
 
 ###############################################################################
-# Import everything from XML::PPD into our own namespace.
+# Import everything from PPM::XML::PPD into our own namespace.
 ###############################################################################
-package XML::PPMConfig;
-use XML::PPD ':elements';
+package PPM::XML::PPMConfig;
+use PPM::XML::PPD ':elements';
 
 ###############################################################################
 # PPMConfig Element: Characters
 ###############################################################################
-package XML::PPMConfig::Characters;
-@ISA = qw( XML::Element );
+package PPM::XML::PPMConfig::Characters;
+@ISA = qw( PPM::XML::Element );
 
 ###############################################################################
 # PPMConfig Element: PPMCONFIG
 ###############################################################################
-package XML::PPMConfig::PPMCONFIG;
-@ISA = qw( XML::ValidatingElement );
+package PPM::XML::PPMConfig::PPMCONFIG;
+@ISA = qw( PPM::XML::ValidatingElement );
 @okids  = qw( PPMVER PLATFORM REPOSITORY OPTIONS PPMPRECIOUS PACKAGE );
 
 ###############################################################################
 # PPMConfig Element: PPMVER
 ###############################################################################
-package XML::PPMConfig::PPMVER;
-@ISA = qw( XML::ValidatingElement );
+package PPM::XML::PPMConfig::PPMVER;
+@ISA = qw( PPM::XML::ValidatingElement );
 
 ###############################################################################
 # PPMConfig Element: PLATFORM
 ###############################################################################
-package XML::PPMConfig::PLATFORM;
-@ISA = qw( XML::ValidatingElement );
+package PPM::XML::PPMConfig::PLATFORM;
+@ISA = qw( PPM::XML::ValidatingElement );
 @oattrs = qw( LANGUAGE );
 @rattrs = qw( OSVALUE OSVERSION CPU );
 
 ###############################################################################
 # PPMConfig Element: REPOSITORY
 ###############################################################################
-package XML::PPMConfig::REPOSITORY;
-@ISA = qw( XML::ValidatingElement );
+package PPM::XML::PPMConfig::REPOSITORY;
+@ISA = qw( PPM::XML::ValidatingElement );
 @oattrs = qw( USERNAME PASSWORD SUMMARYFILE);
 @rattrs = qw( NAME LOCATION );
 
 ###############################################################################
 # PPMConfig Element: OPTIONS
 ###############################################################################
-package XML::PPMConfig::OPTIONS;
-@ISA = qw( XML::ValidatingElement );
+package PPM::XML::PPMConfig::OPTIONS;
+@ISA = qw( PPM::XML::ValidatingElement );
 @rattrs = qw( IGNORECASE CLEAN CONFIRM FORCEINSTALL ROOT BUILDDIR MORE );
 @oattrs = qw( TRACE TRACEFILE VERBOSE DOWNLOADSTATUS );
 
 ###############################################################################
 # PPMConfig Element: PPMPRECIOUS
 ###############################################################################
-package XML::PPMConfig::PPMPRECIOUS;
-@ISA = qw( XML::ValidatingElement );
+package PPM::XML::PPMConfig::PPMPRECIOUS;
+@ISA = qw( PPM::XML::ValidatingElement );
 
 ###############################################################################
 # PPMConfig Element: PACKAGE
 ###############################################################################
-package XML::PPMConfig::PACKAGE;
-@ISA = qw( XML::ValidatingElement );
+package PPM::XML::PPMConfig::PACKAGE;
+@ISA = qw( PPM::XML::ValidatingElement );
 @okids  = qw( LOCATION INSTDATE INSTROOT INSTPACKLIST INSTPPD );
 @rattrs = qw( NAME );
 
 ###############################################################################
 # PPMConfig Element: LOCATION
 ###############################################################################
-package XML::PPMConfig::LOCATION;
-@ISA = qw( XML::ValidatingElement );
+package PPM::XML::PPMConfig::LOCATION;
+@ISA = qw( PPM::XML::ValidatingElement );
 
 ###############################################################################
 # PPMConfig Element: INSTDATE
 ###############################################################################
-package XML::PPMConfig::INSTDATE;
-@ISA = qw( XML::ValidatingElement );
+package PPM::XML::PPMConfig::INSTDATE;
+@ISA = qw( PPM::XML::ValidatingElement );
 
 ###############################################################################
 # PPMConfig Element: INSTROOT
 ###############################################################################
-package XML::PPMConfig::INSTROOT;
-@ISA = qw( XML::ValidatingElement );
+package PPM::XML::PPMConfig::INSTROOT;
+@ISA = qw( PPM::XML::ValidatingElement );
 
 ###############################################################################
 # PPMConfig Element: INSTPACKLIST
 ###############################################################################
-package XML::PPMConfig::INSTPACKLIST;
-@ISA = qw( XML::ValidatingElement );
+package PPM::XML::PPMConfig::INSTPACKLIST;
+@ISA = qw( PPM::XML::ValidatingElement );
 
 ###############################################################################
 # PPMConfig Element: INSTPPD
 ###############################################################################
-package XML::PPMConfig::INSTPPD;
-@ISA = qw( XML::ValidatingElement );
-@okids = qw( SOFTPKG );                 # Allow for an XML::PPD::SOFTPKG
+package PPM::XML::PPMConfig::INSTPPD;
+@ISA = qw( PPM::XML::ValidatingElement );
+@okids = qw( SOFTPKG );                 # Allow for an PPM::XML::PPD::SOFTPKG
 
 __END__
 
@@ -111,23 +111,24 @@ __END__
 
 =head1 NAME
 
-XML::PPMConfig - PPMConfig file format and XML parsing elements
+PPM::XML::PPMConfig - PPMConfig file format and XML parsing elements
 
 =head1 SYNOPSIS
 
  use XML::Parser;
- use XML::PPMConfig;
+ use PPM::XML::PPMConfig;
 
- $p = new XML::Parser( Style => 'Objects', Pkg => 'XML::PPMConfig' );
+ $p = new PPM::XML::Parser( Style => 'Objects', Pkg => 'PPM::XML::PPMConfig' );
  ...
 
 =head1 DESCRIPTION
 
-This module provides a set of classes for parsing PPM configuration files using
-the C<XML::Parser> module.  All of the elements unique to a PPM
-configuration file are derived from C<XML::ValidatingElement>. There are also
-several classes rebuilt here which are derived from elements in C<XML::PPD>
-as we can include a PPD file within our own INSTPPD element.
+This module provides a set of classes for parsing PPM configuration files 
+using the C<XML::Parser> module.  All of the elements unique to a PPM
+configuration file are derived from C<PPM::XML::ValidatingElement>. 
+There are also several classes rebuilt here which are derived from 
+elements in C<PPM::XML::PPD> as we can include a PPD file within our own 
+INSTPPD element.
 
 =head1 MAJOR ELEMENTS
 
@@ -309,7 +310,7 @@ The DTD for PPMConfig documents is available from the ActiveState website and
 the latest version can be found at:
     http://www.ActiveState.com/PPM/DTD/ppmconfig.dtd
 
-This revision of the C<XML::PPMConfig> module implements the following DTD:
+This revision of the C<PPM::XML::PPMConfig> module implements the following DTD:
 
  <!ELEMENT PPMCONFIG (PPMVER | PLATFORM | REPOSITORY | OPTIONS |
                       PPMPRECIOUS | PACKAGE)*>
@@ -399,8 +400,8 @@ generating your own PPD files.
 
 Currently, this module creates new classes within it's own namespace for all of
 the PPD elements which can be contained within the INSTPPD element.  A suitable
-method for importing the entire XML::PPD:: namespace should be found in order
-to make this cleaner.
+method for importing the entire PPM::XML::PPD:: namespace should be found 
+in order to make this cleaner.
 
 =head1 AUTHORS
 
@@ -416,9 +417,9 @@ v0.1 - Initial release
 
 =head1 SEE ALSO
 
-L<XML::ValidatingElement>,
+L<PPM::XML::ValidatingElement>,
 L<XML::Parser>,
-L<XML::PPD>
+L<PPM::XML::PPD>
 .
 
 =cut

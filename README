@@ -1,5 +1,5 @@
 
-This is version 2.1.3 of the Perl Package Manager, PPM.
+This is version 2.1.4 of the Perl Package Manager, PPM.
 
 See the POD contained in bin/ppm.pl for information on how to use the
 PPM client.
@@ -7,10 +7,11 @@ PPM client.
 See the POD contained in lib/PPM.pm for information on how to use the
 PPM library to write an alternative client.
 
-Warning: This version of PPM may not be entirely usable, in its current
-form, outside of ActiveState ActivePerl Perl distributions.  Any patches
-(particularly documentation and setup) that make it a more generally
-useful tool will be gratefully accepted.
+Warning: This version of PPM may not be *entirely* usable, in its current
+form, outside of ActiveState's ActivePerl distributions (i.e., the only
+distributions I use PPM on).  Any patches (particularly documentation 
+and setup) that make it a more generally useful tool will be gratefully 
+accepted.
 
 Quick Start:
 
@@ -27,5 +28,5 @@ Quick Start:
 Needless to say, this could all be fairly easily added to
 Makefile.PL--again, patches are welcome!
 
-Murray Nesbitt <murray@ActiveState.com>
+Murray Nesbitt <murray@cpan.org>
 

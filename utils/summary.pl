@@ -8,7 +8,7 @@
 # original summary format (with IMPLEMENTATION sections), 
 # this results in a file approximately 25% the size.
 #
-# Author: Murray Nesbitt (murray@activestate.com)
+# Author: Murray Nesbitt (murray@cpan.org)
 #
 
 use strict;

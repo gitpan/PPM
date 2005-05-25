@@ -102,3 +102,6 @@ Version 2.1.5 (May 28, 2002)
 Version 2.1.6 (July 06, 2002)
     o Randy Kobes fixed the Makefile.PL to do the right thing to ppm.xml
 
+Version 2.1.7 (May 25, 2005)
+    o Randy Kobes supplied a number of fixes and updates.
+

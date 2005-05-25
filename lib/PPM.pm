@@ -111,6 +111,12 @@ else
 my $init = 0;
 chmod(0600, $PPM::PPMdat);
 
+# add -5.d to archname for Perl >= 5.8 
+my $varchname = $Config{archname};
+if (length($^V) && ord(substr($^V,1)) >= 8) {
+    $varchname .= sprintf("-%d.%d", ord($^V), ord(substr($^V,1)));
+}
+
 #
 # Exported subs
 #
@@ -250,9 +256,9 @@ sub InstallPackage
 
     parsePPD(%PPD);
     if (!$current_package{'CODEBASE'} && !$current_package{'INSTALL_HREF'}) {
-        &Trace("Read a PPD for '$package', but it is not intended for this build of Perl ($Config{archname})")
+        &Trace("Read a PPD for '$package', but it is not intended for this build of Perl ($varchname)")
             if $options{'TRACE'};
-        $PPM::PPMERR = "Read a PPD for '$package', but it is not intended for this build of Perl ($Config{archname})";
+        $PPM::PPMERR = "Read a PPD for '$package', but it is not intended for this build of Perl ($varchname)";
         return 0;
     }
 
@@ -622,9 +628,9 @@ sub VerifyPackage
 
     parsePPD(%comparePPD);
     unless ($current_package{'CODEBASE'} || $current_package{'INSTALL_HREF'}) {
-        &Trace("Read a PPD for '$package', but it is not intended for this build of Perl ($Config{archname})")
+        &Trace("Read a PPD for '$package', but it is not intended for this build of Perl ($varchname)")
             if $options{'TRACE'};
-        $PPM::PPMERR = "Read a PPD for '$package', but it is not intended for this build of Perl ($Config{archname})";
+        $PPM::PPMERR = "Read a PPD for '$package', but it is not intended for this build of Perl ($varchname)";
         return undef;
     }
     my @compare_version = split (',',  $current_package{'VERSION'});
@@ -787,7 +793,7 @@ sub ServerSearch
     my ($proxy, $uri) = ($1, $2);
     my $client = SOAP::Lite -> uri($uri) -> proxy($proxy);
     eval { $data = $client -> 
-        search_ppds($Config{'archname'}, $searchRE, $searchtag) -> result; };
+        search_ppds($varchname, $searchRE, $searchtag) -> result; };
     if ($@) {
         &Trace("Error searching repository '$proxy': $@") 
             if $options{'TRACE'};
@@ -1380,7 +1386,10 @@ sub run_script
     $ENV{'PPM_INSTARCHLIB'} = $inst_archlib;
     if ($exec) {
         $exec = $^X if ($exec =~ /^PPM_PERL$/i);
-        $exec = "start $exec" if $Config{'osname'} eq 'MSWin32';
+        if ($Config{'osname'} eq 'MSWin32') {
+            $exec = Win32::GetShortPathName($exec) if $exec =~ / /;
+            $exec = "start $exec";
+        }
         system("$exec $tmpname");
     }
     else {
@@ -1531,7 +1540,7 @@ sub implementation
 
     # Check to see if we've found a valid IMPLEMENTATION for the target
     # machine.
-    return 0 if ((defined $ImplArch) and ($ImplArch ne $Config{'archname'}));
+    return 0 if ((defined $ImplArch) and ($ImplArch ne $varchname));
     return 0 if ((defined $ImplProcessor) and ($ImplProcessor ne $CPU));
     return 0 if ((defined $ImplLanguage) and ($ImplLanguage ne $LANGUAGE));
     return 0 if ((defined $ImplOS) and ($ImplOS ne $OS_VALUE));

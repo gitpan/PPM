@@ -8,7 +8,7 @@ my $repository = '/home/http/repository';
 #
 
 use XML::Parser;
-use XML::RepositorySummary;
+use PPM::XML::RepositorySummary;
 use strict;
 
 # $summaryfile is the output of utils/summary.pl 
@@ -19,6 +19,8 @@ my $searchsummaryfile = "$repository/searchsummary.ppm";
  
 my ($summary, $searchsummary, $summaryastext, $searchsummaryastext,
     @ppd_data);
+
+sub ppm_protocol {"PPM 200"}
 
 sub search_ppds
 {

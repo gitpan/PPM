@@ -8,8 +8,8 @@ docs/ppd.pod
 docs/ppm-desc2.txt
 docs/ppm.doc
 dtd/RepositorySummary.dtd
-dtd/ppd.dtd
-dtd/ppmconfig.dtd
+dtd/PPD.dtd
+dtd/PPMConfig.dtd
 install.ppm
 lib/PPM.pm
 lib/PPM/RelocPerl.pm

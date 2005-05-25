@@ -132,7 +132,7 @@ sub as_text
     my $type = ref $self;
     $type =~ s/.*:://;
 
-    $text = '<' . $type;
+    $text = "\n<" . $type;
     foreach (sort keys %{$self})
     {
         if ($_ !~ /Text|Kids/)
@@ -145,6 +145,7 @@ sub as_text
     else
         { $text .= ' />'; }
 
+    $text =~ s/\n\n/\n/g;
     return $text;
 }
 

@@ -38,12 +38,20 @@ $postamble .= "
 sub ppm_config {
    my $ppm = 'ppm.xml';
    my $copy = $ppm . '.in';
+   my $location = ($] < 5.008) ?
+       'http://ppm.ActiveState.com/cgibin/PPM/ppmserver.pl?urn:/PPMServer' :
+           'http://ppm.ActiveState.com/cgibin/PPM/ppmserver-5.8-windows.pl?urn:/PPMServer';
+   my $codebase = ($] < 5.008) ?
+       'http://ppm.ActiveState.com/PPMPackages/5.6plus/MSWin32-x86-multi-thread' :
+           'http://ppm.activestate.com/PPMPackages/5.8-windows/MSWin32-x86-multi-thread-5.8';
    rename $ppm, $copy unless (-f $copy);
    my %subs = ( '%OSNAME%'    => $Config{osname},
                 '%OSVERSION%' => '4,0,0,0',
                 '%TEMP%'      => $ENV{TMP} || $ENV{TEMP},
                 '%SITELIB%'   => $Config{sitelib},
                 '%PERLDIR%'   => $Config{prefix},
+                '%LOCATION%'  => $location,
+                '%CODEBASE%'  => $codebase,
               );
    open(OLD, $copy) or die "Cannot open $copy: $!";
    open(NEW, ">$ppm") or die "Cannot open $ppm: $!";

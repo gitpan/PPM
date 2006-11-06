@@ -105,3 +105,6 @@ Version 2.1.6 (July 06, 2002)
 Version 2.1.7 (May 25, 2005)
     o Randy Kobes supplied a number of fixes and updates.
 
+Version 2.1.8 (Nov 05, 2006)
+    o Randy Kobes supplied a patch to support PROVIDE attribute.
+

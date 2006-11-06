@@ -1492,6 +1492,11 @@ sub implementation
             # Dependencies in old PPDs might not have version info.
             $ImplDepend{$elem->{NAME}} = (defined $elem->{VERSION} && $elem->{VERSION} ne "") ? $elem->{VERSION} : "0,0,0,0";
         }
+        elsif ($elem_type eq 'PROVIDE') {
+            # Get the name of any provides we have out of our attributes.
+            # Provides in old PPDs might not have version info.
+            $ImplDepend{$elem->{NAME}} = (defined $elem->{VERSION} && $elem->{VERSION} ne "") ? $elem->{VERSION} : "0";
+        }
         elsif ($elem_type eq 'LANGUAGE') {
             # Get the language out of our attributes (if we don't already have
             # the right one).

@@ -1,6 +1,7 @@
 package PPM::XML::ValidatingElement;
 use PPM::XML::Element;
 use vars qw( $VERSION @ISA );
+$VERSION = '0.01_01';
 
 ###############################################################################
 #
@@ -10,7 +11,6 @@ use vars qw( $VERSION @ISA );
 # restrictions to elements parsed using the XML::Parser module.
 #
 ###############################################################################
-$VERSION = do { my @r = q$Revision: 1.4 $ =~ /\d+/g; sprintf '%d.'.'%02d'x$#r, @r };
 
 ###############################################################################
 # Define the validating element class.

@@ -1,0 +1,45 @@
+--- #YAML:1.0
+name:                PPM
+version:             0.01_01
+abstract:            Perl Package Manager: locate, install, upgrade software packages.
+license:             perl
+author:              
+    - 'Randy Kobes <r.kobes@uwinnipeg.ca>'
+generated_by:        ExtUtils::MakeMaker version 6.42_01
+distribution_type:   module
+requires:     
+    Archive::Tar:                  1.08
+    Archive::Zip:                  1.02
+    Compress::Zlib:                0
+    XML::Parser:                   2.09
+no_index:
+    file:
+        - server/PPMServer.pm
+        - t/lib/TestPPM.pm
+provides:
+  PPM:
+    file: lib/PPM.pm
+    version: 0.01_01
+  PPM::RelocPerl:
+    file: lib/PPM/RelocPerl.pm
+    version: 0.01_01
+  PPM::XML::Element:
+    file: lib/PPM/XML/Element.pm
+    version: 0.01_01
+  PPM::XML::PPD:
+    file: lib/PPM/XML/PPD.pm
+    version: 0.01_01
+  PPM::XML::PPMConfig:
+    file: lib/PPM/XML/PPMConfig.pm
+    version: 0.01_01
+  PPM::XML::RepositorySummary:
+    file: lib/PPM/XML/RepositorySummary.pm
+    version: 0.01_01
+  PPM::XML::ValidatingElement:
+    file: lib/PPM/XML/ValidatingElement.pm
+    version: 0.01_01
+meta-spec:
+    url:     http://module-build.sourceforge.net/META-spec-v1.3.html
+    version: 1.3
+urls:
+   license: http://dev.perl.org/licenses/

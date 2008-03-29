@@ -1,6 +1,8 @@
 package PPM;
 require 5.004;
 require Exporter;
+use vars qw( $VERSION );
+$VERSION = '0.01_01';
 
 @ISA = qw(Exporter);
 @EXPORT = qw(PPMdat PPMERR InstalledPackageProperties ListOfRepositories
@@ -20,14 +22,18 @@ use ExtUtils::Install;
 use Cwd;
 use Config;
 use PPM::RelocPerl;
-use SOAP::Lite;
 
 use PPM::XML::PPD;
 use PPM::XML::PPMConfig;
 use XML::Parser;
 use Archive::Tar;
+use Archive::Zip;
 
 use strict;
+
+if ($] <= 5.008) {
+  require SOAP::Lite;
+}
 
 my $useDocTools;  # Generate HTML documentation after installing a package
 
@@ -113,8 +119,10 @@ chmod(0600, $PPM::PPMdat);
 
 # add -5.d to archname for Perl >= 5.8 
 my $varchname = $Config{archname};
-if (length($^V) && ord(substr($^V,1)) >= 8) {
-    $varchname .= sprintf("-%d.%d", ord($^V), ord(substr($^V,1)));
+if ($] >= 5.008) {
+    my $vstring = sprintf "%vd", $^V;
+    $vstring =~ s/\.\d+$//;
+    $varchname .= "-$vstring";
 }
 
 #
@@ -176,10 +184,13 @@ sub AddRepository
     my $location = $argv{'location'};
     my $username = $argv{'username'};
     my $password = $argv{'password'};
+    my $summaryfile = $argv{'summaryfile'};
     read_config();
     $repositories{$repository}{'LOCATION'} = $location;
     $repositories{$repository}{'USERNAME'} = $username if defined $username;
     $repositories{$repository}{'PASSWORD'} = $password if defined $password;
+    $repositories{$repository}{'SUMMARYFILE'} = $summaryfile 
+      if defined $summaryfile;
     &Trace("Added repository $location") if $options{'TRACE'};
     save_options() if $save;
 }
@@ -285,11 +296,13 @@ sub InstallPackage
             }
             # make sure minimum version is installed, if necessary
             elsif (defined $current_package{'DEPEND'}{$dep}) {
-                my @comp = split (',', $current_package{'DEPEND'}{$dep});
+                my @comp = 
+		  split (',', cpan2ppd_version($current_package{'DEPEND'}{$dep}));
                 # parsePPD fills in %current_package
                 push(@current_package_stack, [%current_package]);
                 parsePPD(%{$installed_packages{$dep}{'INST_PPD'}});
-                my @inst = split (',', $current_package{'VERSION'});
+                my @inst = 
+		  split (',', cpan2ppd_version($current_package{'VERSION'}));
                 foreach(0..3) {
                     if ($comp[$_] > $inst[$_]) {
                         VerifyPackage("package" => $dep, "upgrade" => 1);
@@ -351,15 +364,26 @@ sub InstallPackage
     $cwd .= "/" if $cwd =~ /[a-z]:$/i;
     chdir($install_dir);
 
-    my $tar;
-    if ($basename =~ /\.gz$/i) {
-        $tar = Archive::Tar->new($basename,1);
+    my ($tarzip, $have_zip);
+    if ($basename =~ /\.zip$/i) {
+        $have_zip = 1;
+        $tarzip = Archive::Zip->new($basename);
+        $tarzip->extractTree();
+    }
+    elsif ($basename =~ /\.gz$/i) {
+        $tarzip = Archive::Tar->new($basename,1);
     }
     else {
-        $tar = Archive::Tar->new($basename,0);
+        $tarzip = Archive::Tar->new($basename,0);
     }
-    $tar->extract($tar->list_files);
-    $basename =~ /(.*).tar/i;
+
+    if ($have_zip) {
+        $basename =~ /(.*).zip/i;
+   }
+   else {
+        $tarzip->extract($tarzip->list_files);
+        $basename =~ /(.*).tar/i;
+    }
     chdir($1);
     RelocPerl('.') if ($Config{'osname'} ne 'MSWin32');
 
@@ -623,7 +647,8 @@ sub VerifyPackage
     }
 
     parsePPD(%installedPPD);
-    my @installed_version = split (',', $current_package{'VERSION'});
+    my @installed_version = 
+      split (',', cpan2ppd_version($current_package{'VERSION'}));
     my $inst_root = $installed_packages{$package}{'INST_ROOT'};
 
     parsePPD(%comparePPD);
@@ -633,7 +658,8 @@ sub VerifyPackage
         $PPM::PPMERR = "Read a PPD for '$package', but it is not intended for this build of Perl ($varchname)";
         return undef;
     }
-    my @compare_version = split (',',  $current_package{'VERSION'});
+    my @compare_version 
+      = split (',',  cpan2ppd_version($current_package{'VERSION'}));
     my $available;
     foreach(0..3) {
         next if $installed_version[$_] == $compare_version[$_];
@@ -1443,6 +1469,10 @@ sub parsePPD
             next if ($got_implementation);
             $got_implementation = implementation( @{ $elem->{Kids} } );
         }
+	elsif ($elem_type eq 'REQUIRE' or $elem_type eq 'PROVIDE') {
+	  # we don't use these yet
+	  next;
+	}
         else {
             &Trace("Unknown element '$elem_type' found inside SOFTPKG") if $options{'TRACE'};
             die "Unknown element '$elem_type' found inside SOFTPKG.";
@@ -1475,7 +1505,7 @@ sub implementation
     my ($ImplProcessor, $ImplOS, $ImplOSVersion, $ImplLanguage, $ImplCodebase);
     my ($ImplInstallHREF, $ImplInstallEXEC, $ImplInstallScript);
     my ($ImplUninstallHREF, $ImplUninstallEXEC, $ImplUninstallScript);
-    my ($ImplArch, $ImplPerlCoreVer, %ImplDepend);
+    my ($ImplArch, $ImplPerlCoreVer, %ImplDepend, %ImplRequire, %ImplProvide);
 
     my $elem;
     foreach $elem (@impl) {
@@ -1495,7 +1525,12 @@ sub implementation
         elsif ($elem_type eq 'PROVIDE') {
             # Get the name of any provides we have out of our attributes.
             # Provides in old PPDs might not have version info.
-            $ImplDepend{$elem->{NAME}} = (defined $elem->{VERSION} && $elem->{VERSION} ne "") ? $elem->{VERSION} : "0";
+            $ImplProvide{$elem->{NAME}} = (defined $elem->{VERSION} && $elem->{VERSION} ne "") ? $elem->{VERSION} : "0";
+        }
+        elsif ($elem_type eq 'REQUIRE') {
+            # Get the name of any provides we have out of our attributes.
+            # Provides in old PPDs might not have version info.
+            $ImplRequire{$elem->{NAME}} = (defined $elem->{VERSION} && $elem->{VERSION} ne "") ? $elem->{VERSION} : "0";
         }
         elsif ($elem_type eq 'LANGUAGE') {
             # Get the language out of our attributes (if we don't already have
@@ -1596,7 +1631,6 @@ sub getPPDfile
         $package =~ s@^localhost/@@i;
         $package =~ s@\|@:@;
     }
-
     # full path to a file?
     if (-f $package) {
         local $/;
@@ -1823,6 +1857,15 @@ sub Trace
     print PPMTRACE "$0: @_ at ",  scalar localtime(), "\n";
 }
 
+# Converts a cpan-type of version string (eg, I<1.23>) into a ppd one
+# of the form I<1,23,0,0>:
+
+sub cpan2ppd_version {
+  my $v = shift;
+  return $v if ($v =~ /,/);
+  return join ',', (split (/\./, $v), (0)x4)[0..3];
+}
+
 1;
 
 __END__
@@ -1843,7 +1886,7 @@ ppm - PPM (Perl Package Management)
 
  PPM::ListOfRepositories();
  PPM::RemoveRepository("repository" => $repository, "save" => $save);
- PPM::AddRepository("repository" => $repository, "location" => $location, "save" => $save);
+ PPM::AddRepository("repository" => $repository, "location" => $location, "save" => $save, "summaryfile" => $summaryfile);
  PPM::RepositoryPackages("location" => $location);
  PPM::RepositoryPackageProperties("package" => $package, "location" => $location);
  PPM::RepositorySummary("location" => $location);
@@ -2001,7 +2044,7 @@ expected to be the hash previously returned by a call to GetPPMOptions().
 
 =over 4
 
-=item PPM::AddRepository("repository" => 'ActiveState', "location" => "http://www.ActiveState.com/packages", "save" => 1);
+=item PPM::AddRepository("repository" => 'ActiveState', "location" => "http://www.ActiveState.com/packages", "save" => 1, "summaryfile" => "searchsummary.ppm");
 
 Adds a repository to the list of available repositories, and saves it in
 the PPM options file.

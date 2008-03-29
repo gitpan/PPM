@@ -6,13 +6,13 @@
 #
 ###############################################################################
 
-$PPM::XML::RepositorySummary::revision = '$Id: RepositorySummary.pm,v 1.1.1.1 2000/01/26 17:39:19 graham Exp $';
-$PPM::XML::RepositorySummary::VERSION  = '0.01';
-
 ###############################################################################
 # Import everything from PPM::XML::PPD into our own namespace.
 ###############################################################################
 package PPM::XML::RepositorySummary;
+use vars qw( $VERSION );
+$VERSION = '0.01_01';
+
 use PPM::XML::PPD ':elements';
 
 ###############################################################################

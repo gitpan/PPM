@@ -1,5 +1,6 @@
 package PPM::XML::Element;
 use vars qw( $VERSION );
+$VERSION = '0.01_01';
 
 #
 # PPM::XML::Element
@@ -8,7 +9,6 @@ use vars qw( $VERSION );
 # once it's been parsed using the XML::Parser module.
 #
 ###############################################################################
-$VERSION = do { my @r = q$Revision: 1.7 $ =~ /\d+/g; sprintf '%d.'.'%02d'x$#r, @r };
 
 ###############################################################################
 # Required inclusions.
@@ -43,7 +43,9 @@ sub output
 sub content
 {
     my $self = shift;
-    my @kids = @{ $self->{'Kids'} };
+    my $kids = $self->{'Kids'};
+    return unless (defined $kids and ref($kids) eq 'ARRAY');
+    my @kids = @{ $kids };
     my $text;
 
     if (@kids > 0)
@@ -135,8 +137,10 @@ sub as_text
     $text = "\n<" . $type;
     foreach (sort keys %{$self})
     {
-        if ($_ !~ /Text|Kids/)
-            { $text .= " $_=\"" . $self->{$_} . '"'; }
+        if ($_ !~ /Text|Kids/) { 
+	  if (defined $self->{$_} ) {
+	      $text .= " $_=\"" . $self->{$_} . '"'; }
+	  }
     }
 
     my $cont = $self->content();

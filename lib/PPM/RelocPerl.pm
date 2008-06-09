@@ -11,8 +11,6 @@ require Exporter;
 use File::Find;
 use Config;
 use strict;
-use vars qw( $VERSION );
-$VERSION = '0.01_01';
 
 # We have to build up this variable, otherwise
 # PPM will mash it when it upgrades itself.

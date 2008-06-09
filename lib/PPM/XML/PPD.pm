@@ -8,13 +8,14 @@
 use PPM::XML::ValidatingElement;
 use Exporter;
 
+$PPM::XML::PPD::revision = '$Id: PPD.pm,v 1.2 2000/01/27 19:33:17 graham Exp $';
+$PPM::XML::PPD::VERSION  = '0.01';
+
 ###############################################################################
 # Set up PPM::XML::PPD to export its sub-packages so that we can use them in 
 # other XML documents without too much effort.
 ###############################################################################
 package PPM::XML::PPD;
-use vars qw( $VERSION );
-$VERSION = '0.01_01';
 @ISA = qw( Exporter );
 %EXPORT_TAGS = ( 'elements' =>
                  [ '%SOFTPKG::', '%IMPLEMENTATION::', '%DEPENDENCY::',
@@ -22,7 +23,7 @@ $VERSION = '0.01_01';
                    '%LANGUAGE::', '%LICENSE::', '%OS::',
                    '%OSVERSION::', '%PERLCORE::', '%PROCESSOR::',
                    '%CODEBASE::', '%INSTALL::', '%UNINSTALL::',
-                   '%ARCHITECTURE::', '%PROVIDE::', '%REQUIRE::',
+                   '%ARCHITECTURE::', '%PROVIDE::',
                  ] );
 Exporter::export_ok_tags( 'elements' );
 
@@ -34,7 +35,7 @@ package PPM::XML::PPD::SOFTPKG;
 @oattrs = qw( VERSION );
 @rattrs = qw( NAME );
 @okids  = qw( ABSTRACT AUTHOR IMPLEMENTATION LICENSE 
-              TITLE INSTALL UNINSTALL PROVIDE REQUIRE);
+              TITLE INSTALL UNINSTALL PROVIDE);
 
 ###############################################################################
 # PPD Element: TITLE
@@ -63,14 +64,6 @@ package PPM::XML::PPD::PROVIDE;
 @rattrs = qw( NAME );
 
 ###############################################################################
-# PPD Element: REQUIRE
-###############################################################################
-package PPM::XML::PPD::REQUIRE;
-@ISA = qw( PPM::XML::ValidatingElement );
-@oattrs = qw( VERSION );
-@rattrs = qw( NAME );
-
-###############################################################################
 # PPD Element: LICENSE
 ###############################################################################
 package PPM::XML::PPD::LICENSE;
@@ -83,7 +76,7 @@ package PPM::XML::PPD::LICENSE;
 package PPM::XML::PPD::IMPLEMENTATION;
 @ISA = qw( PPM::XML::ValidatingElement );
 @okids = qw( DEPENDENCY INSTALL LANGUAGE OS OSVERSION PERLCORE PROCESSOR
-             UNINSTALL ARCHITECTURE PROVIDE REQUIRE);
+             UNINSTALL ARCHITECTURE PROVIDE);
 @rkids = qw( CODEBASE );
 
 ###############################################################################

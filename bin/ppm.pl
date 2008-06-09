@@ -7,7 +7,7 @@ use strict;
 
 use PPM;
 
-$PPM::VERSION = '0.01_01';
+$PPM::VERSION = "2.1.6";
 
 my %help;
 
@@ -589,87 +589,13 @@ sub verify_packages
 
 sub genconfig
 {
-  my $repositories =
-    {'5.6' => {
-	       'ActiveState' =>
-	       {location => 'http://ppm.ActiveState.com/cgibin/PPM/ppmserver.pl?urn:/PPMServer',
-		summaryfile => 'fetch_summary',
-	       },
-	       'Bribes' =>
-	       {location => 'http://www.bribes.org/perl/ppm',
-		summaryfile => 'searchsummary.ppm',
-	       },
-	       'UWinnipeg' =>
-	       {location => 'http://theoryx5.uwinnipeg.ca/cgi-bin/ppmserver?urn:/PPMServer',
-		summaryfile => 'fetch_summary',
-	       },
-	      },
-     '5.8' => {
-	       'ActiveState' =>
-	       {location => 'http://ppm.activestate.com/PPMPackages/5.8-windows',
-		summaryfile => 'searchsummary.ppm',
-	       },
-	       'Bribes' =>
-	       {location => 'http://www.bribes.org/perl/ppm',
-		summaryfile => 'searchsummary.ppm',
-	       },
-	       'UWinnipeg' =>
-	       {location => 'http://theoryx5.uwinnipeg.ca/ppms',
-		summaryfile => 'searchsummary.ppm',
-	       },
-	       'Trouchelle' =>
-	       {location => 'http://trouchelle.com/ppm',
-		summaryfile => 'searchsummary.ppm',
-	       },
-	      },
-     '5.10' => {
-		'ActiveState' =>
-		{location => 'http://ppm.activestate.com/PPMPackages/5.10-windows',
-		 summaryfile => 'searchsummary.ppm',
-		},
-		'Bribes' =>
-		{location => 'http://www.bribes.org/perl/ppm',
-		 summaryfile => 'searchsummary.ppm',
-		},
-		'UWinnipeg' =>
-		{location => 'http://cpan.uwinnipeg.ca/PPMPackages/10xx',
-		 summaryfile => 'searchsummary.ppm',
-		},
-		'Trouchelle' =>
-		{location => 'http://trouchelle.com/ppm10',
-		 summaryfile => 'package.xml',
-		},
-	       },
-    };
-   my ($perl_version);
- PERLV: {
-     ($] < 5.008) and do {
-       $perl_version = '5.6';
-       last PERLV;
-     };
-     ($] < 5.01) and do {
-       $perl_version = '5.8';
-       last PERLV;
-     };
-     $perl_version = '5.10';
-   }
-   my $reps = $repositories->{$perl_version};
-  my $PerlDir = $Config{'prefix'};
-
+my $PerlDir = $Config{'prefix'};
 print <<"EOF";
 <PPMCONFIG>
-    <PPMVER>2,1,8,0</PPMVER>
+    <PPMVER>2,1,5,0</PPMVER>
     <PLATFORM CPU="x86" OSVALUE="$Config{'osname'}" OSVERSION="0,0,0,0" />
     <OPTIONS BUILDDIR="$ENV{'TEMP'}" CLEAN="1" CONFIRM="1" DOWNLOADSTATUS="16384" FORCEINSTALL="1" IGNORECASE="1" MORE="0" ROOT="$PerlDir" TRACE="0" TRACEFILE="PPM.LOG" VERBOSE="1" />
-EOF
-  foreach my $name(sort keys %$reps) {
-    my $loc = $reps->{$name}->{location};
-    my $sf = $reps->{$name}->{summaryfile};
-    print << "EOF";
-    <REPOSITORY LOCATION="$loc" NAME="$name" SUMMARYFILE="$sf" />
-EOF
-  }
-  print <<"EOF";
+    <REPOSITORY LOCATION="http://www.ActiveState.com/cgibin/PPM/ppmserver.pl?urn:/PPMServer" NAME="ActiveState Package Repository" SUMMARYFILE="fetch_summary"/>
     <PPMPRECIOUS>Compress-Zlib;Archive-Tar;Digest-MD5;File-CounterFile;Font-AFM;HTML-Parser;HTML-Tree;MIME-Base64;URI;XML-Element;libwww-perl;XML-Parser;SOAP-Lite;PPM;libnet;libwin32</PPMPRECIOUS>
 </PPMCONFIG>
 EOF
@@ -893,8 +819,6 @@ Available options:
     verbose [1|0]
         - Display additional package information for 'query' and
           'search' commands.
-
-=back
 
 =head1 EXAMPLES
 

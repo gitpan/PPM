@@ -1,18 +1,14 @@
-This is an (unauthorized) development release of PPM, based on PPM-2.1.8
-of Murray Nesbitt, with some changes made to make it work with perl-5.10.
-For details of these changes, please see the Changes file. The original
-Changes and README files of PPM-2.1.8 are included in this distribution
-as, respectively, Changes.orig and README.orig.
 
-Installation of this package will result in a set of default
-repositories being included in the ppm.xml configuration file,
-including the appropriate ActiveState repository. If you find 
-searches are too slow with these repositories, try deleting
-some.
+This is version 2.1.9 of the Perl Package Manager, PPM.
 
-In the future these changes will hopefully be integrated into a new
-official PPM version.
+See the POD contained in bin/ppm.pl for information on how to use the
+PPM client.
 
-Please contact Randy Kobes <r.kobes@uwinnipeg.ca> for problems related
-to these changes and/or suggestions for enhancements.
+See the POD contained in lib/PPM.pm for information on how to use the
+PPM library to write an alternative client.
+
+Any patches (particularly documentation and setup) that make it a
+more generally useful tool will be gratefully accepted.
+
+Murray Nesbitt <murray@cpan.org>
 
